@@ -6,7 +6,7 @@ RUN \
   if [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
   elif [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
-  else npm install; fi
+  else echo "No lockfile found, using npm install" && npm install; fi
 
 FROM node:22-alpine AS builder
 WORKDIR /app

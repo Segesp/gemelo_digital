@@ -91,6 +91,26 @@ services:
     ports:
       - "7800:7800"
 
+  nasa_service:
+    build: ./apps/nasa_service
+    container_name: gd_nasa_service
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/gemelo
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  esa_lima_service:
+    build: ./apps/esa_lima_service
+    container_name: gd_esa_lima_service
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/gemelo
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   adminer:
     image: adminer:latest
     container_name: gd_adminer

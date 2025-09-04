@@ -129,7 +129,7 @@ export default function Home() {
     }
 
     // Create GeoJSON from NASA data
-    const geojson = {
+    const geojson: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: nasaData.map(point => ({
         type: 'Feature',

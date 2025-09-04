@@ -3,6 +3,9 @@ node_modules
 .next
 out
 
+# Turbo
+.turbo
+
 # Python
 __pycache__
 .venv

@@ -1,0 +1,107 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: gd_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=gemelo
+    volumes:
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: gd_mqtt
+    volumes:
+      - ./infra/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mqtt/password_file:/mosquitto/config/password_file:ro
+      - ./logs/mosquitto:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+
+  api:
+    build: ./apps/api
+    container_name: gd_api
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/gemelo
+      - MQTT_URL=mqtt://mqtt:1883
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGDATABASE=gemelo
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  ingest:
+    build: ./apps/ingest
+    container_name: gd_ingest
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/gemelo
+      - MQTT_URL=mqtt://mqtt:1883
+    depends_on:
+      mqtt:
+        condition: service_started
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./apps/web
+    container_name: gd_web
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+  pg_featureserv:
+    image: pramsey/pg_featureserv:latest
+    container_name: gd_pg_featureserv
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/gemelo
+      - GIN_PORT=9000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "9000:9000"
+
+  pg_tileserv:
+    image: pramsey/pg_tileserv:latest
+    container_name: gd_pg_tileserv
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/gemelo
+      - LISTEN_ADDR=0.0.0.0:7800
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "7800:7800"
+
+  adminer:
+    image: adminer:latest
+    container_name: gd_adminer
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+networks:
+  default:
+    name: gemelo_net

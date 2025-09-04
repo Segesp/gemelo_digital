@@ -5,7 +5,7 @@ from typing import Optional, List, Any
 import os
 import asyncpg
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/gemelo")
 
@@ -193,6 +193,247 @@ async def insert_ts(ts: TimeseriesIn):
             parsed_time, ts.sensor_id, ts.value, json.dumps(ts.properties)
         )
         return {"ok": True}
+    finally:
+        await conn.close()
+
+@app.get("/nasa/datasets")
+async def list_nasa_datasets():
+    """List available NASA datasets"""
+    conn = await get_conn()
+    try:
+        rows = await conn.fetch("""
+            SELECT DISTINCT dataset, parameter, COUNT(*) as count,
+                   MIN(timestamp) as earliest, MAX(timestamp) as latest
+            FROM gd.nasa_data 
+            GROUP BY dataset, parameter 
+            ORDER BY dataset, parameter
+        """)
+        return [dict(r) for r in rows]
+    finally:
+        await conn.close()
+
+@app.get("/nasa/data/{dataset}/{parameter}")
+async def get_nasa_data(dataset: str, parameter: str, limit: int = 100, hours_back: int = 24):
+    """Get NASA data for specific dataset and parameter"""
+    conn = await get_conn()
+    try:
+        cutoff_time = datetime.now() - timedelta(hours=hours_back)
+        rows = await conn.fetch("""
+            SELECT timestamp, value, latitude, longitude, metadata,
+                   ST_AsGeoJSON(geom) as geom
+            FROM gd.nasa_data 
+            WHERE dataset = $1 AND parameter = $2 AND timestamp >= $3
+            ORDER BY timestamp DESC 
+            LIMIT $4
+        """, dataset, parameter, cutoff_time, limit)
+        
+        data_points = []
+        for r in rows:
+            data_points.append({
+                "timestamp": r["timestamp"],
+                "value": r["value"],
+                "latitude": r["latitude"],
+                "longitude": r["longitude"],
+                "metadata": r["metadata"],
+                "geometry": json.loads(r["geom"]) if r["geom"] else None
+            })
+        
+        return {
+            "dataset": dataset,
+            "parameter": parameter,
+            "count": len(data_points),
+            "data": data_points
+        }
+    finally:
+        await conn.close()
+
+@app.get("/nasa/analysis/spatial-average/{dataset}/{parameter}")
+async def nasa_spatial_average(dataset: str, parameter: str, hours_back: int = 24):
+    """Calculate spatial average of NASA data within Chancay area"""
+    conn = await get_conn()
+    try:
+        cutoff_time = datetime.now() - timedelta(hours=hours_back)
+        result = await conn.fetchrow("""
+            SELECT 
+                COUNT(*) as count,
+                AVG(value) as avg_value,
+                MIN(value) as min_value,
+                MAX(value) as max_value,
+                STDDEV(value) as std_value
+            FROM gd.nasa_data 
+            WHERE dataset = $1 AND parameter = $2 AND timestamp >= $3
+            AND latitude BETWEEN -11.65 AND -11.50 
+            AND longitude BETWEEN -77.35 AND -77.20
+        """, dataset, parameter, cutoff_time)
+        
+        return {
+            "dataset": dataset,
+            "parameter": parameter,
+            "time_range_hours": hours_back,
+            "spatial_stats": dict(result) if result else {}
+        }
+    finally:
+        await conn.close()
+
+@app.get("/esa/datasets")
+async def list_esa_datasets():
+    """List available ESA datasets"""
+    conn = await get_conn()
+    try:
+        rows = await conn.fetch("""
+            SELECT DISTINCT dataset, parameter, COUNT(*) as count,
+                   MIN(timestamp) as earliest, MAX(timestamp) as latest
+            FROM gd.esa_data 
+            GROUP BY dataset, parameter 
+            ORDER BY dataset, parameter
+        """)
+        return [dict(r) for r in rows]
+    finally:
+        await conn.close()
+
+@app.get("/lima/datasets")
+async def list_lima_datasets():
+    """List available Lima datasets"""
+    conn = await get_conn()
+    try:
+        rows = await conn.fetch("""
+            SELECT DISTINCT dataset, parameter, location, COUNT(*) as count,
+                   MIN(timestamp) as earliest, MAX(timestamp) as latest
+            FROM gd.lima_data 
+            GROUP BY dataset, parameter, location 
+            ORDER BY dataset, parameter, location
+        """)
+        return [dict(r) for r in rows]
+    finally:
+        await conn.close()
+
+@app.get("/esa/data/{dataset}/{parameter}")
+async def get_esa_data(dataset: str, parameter: str, limit: int = 100, hours_back: int = 24):
+    """Get ESA data for specific dataset and parameter"""
+    conn = await get_conn()
+    try:
+        cutoff_time = datetime.now() - timedelta(hours=hours_back)
+        rows = await conn.fetch("""
+            SELECT timestamp, value, latitude, longitude, metadata,
+                   ST_AsGeoJSON(geom) as geom
+            FROM gd.esa_data 
+            WHERE dataset = $1 AND parameter = $2 AND timestamp >= $3
+            ORDER BY timestamp DESC 
+            LIMIT $4
+        """, dataset, parameter, cutoff_time, limit)
+        
+        data_points = []
+        for r in rows:
+            data_points.append({
+                "timestamp": r["timestamp"],
+                "value": r["value"],
+                "latitude": r["latitude"],
+                "longitude": r["longitude"],
+                "metadata": r["metadata"],
+                "geometry": json.loads(r["geom"]) if r["geom"] else None
+            })
+        
+        return {
+            "dataset": dataset,
+            "parameter": parameter,
+            "count": len(data_points),
+            "data": data_points
+        }
+    finally:
+        await conn.close()
+
+@app.get("/lima/data/{dataset}/{parameter}")
+async def get_lima_data(dataset: str, parameter: str, location: Optional[str] = None, limit: int = 100, hours_back: int = 24):
+    """Get Lima data for specific dataset and parameter"""
+    conn = await get_conn()
+    try:
+        cutoff_time = datetime.now() - timedelta(hours=hours_back)
+        where_clause = "WHERE dataset = $1 AND parameter = $2 AND timestamp >= $3"
+        params = [dataset, parameter, cutoff_time]
+        
+        if location:
+            where_clause += " AND location = $4"
+            params.append(location)
+            limit_param = "$5"
+        else:
+            limit_param = "$4"
+        
+        rows = await conn.fetch(f"""
+            SELECT timestamp, value, location, latitude, longitude, metadata,
+                   ST_AsGeoJSON(geom) as geom
+            FROM gd.lima_data 
+            {where_clause}
+            ORDER BY timestamp DESC 
+            LIMIT {limit_param}
+        """, *params, limit)
+        
+        data_points = []
+        for r in rows:
+            data_points.append({
+                "timestamp": r["timestamp"],
+                "value": r["value"],
+                "location": r["location"],
+                "latitude": r["latitude"],
+                "longitude": r["longitude"],
+                "metadata": r["metadata"],
+                "geometry": json.loads(r["geom"]) if r["geom"] else None
+            })
+        
+        return {
+            "dataset": dataset,
+            "parameter": parameter,
+            "location": location,
+            "count": len(data_points),
+            "data": data_points
+        }
+    finally:
+        await conn.close()
+
+@app.get("/analysis/integrated/{parameter}")
+async def integrated_analysis(parameter: str, hours_back: int = 24):
+    """
+    Integrated analysis combining NASA, ESA, and Lima data for a specific parameter
+    """
+    conn = await get_conn()
+    try:
+        cutoff_time = datetime.now() - timedelta(hours=hours_back)
+        
+        # Get NASA data
+        nasa_stats = await conn.fetchrow("""
+            SELECT 'NASA' as source, COUNT(*) as count, AVG(value) as avg_value,
+                   MIN(value) as min_value, MAX(value) as max_value
+            FROM gd.nasa_data 
+            WHERE parameter ILIKE $1 AND timestamp >= $2
+        """, f"%{parameter}%", cutoff_time)
+        
+        # Get ESA data
+        esa_stats = await conn.fetchrow("""
+            SELECT 'ESA' as source, COUNT(*) as count, AVG(value) as avg_value,
+                   MIN(value) as min_value, MAX(value) as max_value
+            FROM gd.esa_data 
+            WHERE parameter ILIKE $1 AND timestamp >= $2
+        """, f"%{parameter}%", cutoff_time)
+        
+        # Get Lima data
+        lima_stats = await conn.fetchrow("""
+            SELECT 'LIMA' as source, COUNT(*) as count, AVG(value) as avg_value,
+                   MIN(value) as min_value, MAX(value) as max_value
+            FROM gd.lima_data 
+            WHERE parameter ILIKE $1 AND timestamp >= $2
+        """, f"%{parameter}%", cutoff_time)
+        
+        results = []
+        for stats in [nasa_stats, esa_stats, lima_stats]:
+            if stats and stats["count"] > 0:
+                results.append(dict(stats))
+        
+        return {
+            "parameter": parameter,
+            "time_range_hours": hours_back,
+            "sources": results,
+            "total_data_points": sum(r["count"] for r in results)
+        }
+        
     finally:
         await conn.close()
 

@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemelo Digital Chancay - Dashboard Completo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            color: #334155;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "sidebar main-content right-panel"
+                "footer footer footer";
+            grid-template-rows: auto 1fr auto;
+            grid-template-columns: 300px 1fr 350px;
+            height: 100vh;
+            gap: 1px;
+            background: #e2e8f0;
+        }
+        
+        .header {
+            grid-area: header;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header .subtitle {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .sidebar {
+            grid-area: sidebar;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #e2e8f0;
+        }
+        
+        .main-content {
+            grid-area: main-content;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .right-panel {
+            grid-area: right-panel;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid #e2e8f0;
+        }
+        
+        .footer {
+            grid-area: footer;
+            background: white;
+            padding: 12px 30px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 14px;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .data-source {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .data-source h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .data-source .status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+        
+        .data-source .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .metric {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .metric .value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .metric .label {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        
+        .analysis-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .analysis-card h3 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: #1e293b;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 8px;
+        }
+        
+        .chart-placeholder {
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 16px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #bae6fd;
+        }
+        
+        .stat-card .number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0284c7;
+        }
+        
+        .stat-card .text {
+            font-size: 12px;
+            color: #0369a1;
+            margin-top: 4px;
+        }
+        
+        .alert {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .alert.success {
+            background: #d1fae5;
+            border-color: #10b981;
+            color: #047857;
+        }
+        
+        .alert.warning {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+        
+        .alert.error {
+            background: #fee2e2;
+            border-color: #ef4444;
+            color: #dc2626;
+        }
+        
+        .recommendations {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        
+        .recommendations h4 {
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+        
+        .recommendations ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .recommendations li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .recommendations li:before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-group label {
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .control-group select, .control-group button {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            color: #374151;
+            cursor: pointer;
+        }
+        
+        .control-group button {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            font-weight: 500;
+        }
+        
+        .control-group button:hover {
+            background: #2563eb;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .time-series {
+            margin-top: 16px;
+        }
+        
+        .time-series-item {
+            background: #fafafa;
+            border: 1px solid #e5e5e5;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+        
+        .timestamp {
+            color: #64748b;
+            font-size: 12px;
+        }
+        
+        .value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 12px 0;
+        }
+        
+        .success-message {
+            background: #d1fae5;
+            color: #047857;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 12px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>🛰️ Gemelo Digital Chancay</h1>
+            <div class="subtitle">Sistema Integrado de Análisis Espacial y Temporal - NASA, ESA, Lima Municipal</div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="data-source">
+                <h3>🛰️ NASA <span class="status"></span></h3>
+                <p>Datos meteorológicos y satelitales de la NASA</p>
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="value" id="nasa-count">--</div>
+                        <div class="label">Puntos de datos</div>
+                    </div>
+                    <div class="metric">
+                        <div class="value" id="nasa-params">--</div>
+                        <div class="label">Parámetros</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="data-source">
+                <h3>🇪🇺 ESA Copernicus <span class="status"></span></h3>
+                <p>Sentinel-1, Sentinel-2, Sentinel-3</p>
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="value" id="esa-count">--</div>
+                        <div class="label">Puntos de datos</div>
+                    </div>
+                    <div class="metric">
+                        <div class="value" id="esa-params">--</div>
+                        <div class="label">Satélites</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="data-source">
+                <h3>🏙️ Lima Municipal <span class="status"></span></h3>
+                <p>Calidad del aire y tráfico urbano</p>
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="value" id="lima-count">--</div>
+                        <div class="label">Puntos de datos</div>
+                    </div>
+                    <div class="metric">
+                        <div class="value" id="lima-stations">--</div>
+                        <div class="label">Estaciones</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="data-source">
+                <h3>📡 IoT Sensores <span class="status"></span></h3>
+                <p>Sensores locales en tiempo real</p>
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="value" id="iot-temp">--°C</div>
+                        <div class="label">Temp. Puerto</div>
+                    </div>
+                    <div class="metric">
+                        <div class="value" id="iot-status">--</div>
+                        <div class="label">Estado</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="data-source">Fuente de datos:</label>
+                    <select id="data-source">
+                        <option value="nasa">NASA</option>
+                        <option value="esa">ESA</option>
+                        <option value="lima">Lima</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="parameter">Parámetro:</label>
+                    <select id="parameter">
+                        <option value="">Seleccione parámetro</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button onclick="loadAnalysis()">🔄 Actualizar Análisis</button>
+                </div>
+                <div class="control-group">
+                    <button onclick="generateReport()">📊 Generar Reporte</button>
+                </div>
+            </div>
+            
+            <div class="analysis-card">
+                <h3>📈 Análisis Temporal y Espacial</h3>
+                <div id="current-analysis">
+                    <div class="chart-placeholder">
+                        Seleccione una fuente de datos y parámetro para ver el análisis
+                    </div>
+                </div>
+                <div class="stats-grid" id="stats-grid" style="display: none;">
+                    <div class="stat-card">
+                        <div class="number" id="stat-count">0</div>
+                        <div class="text">Puntos de datos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="stat-avg">0</div>
+                        <div class="text">Promedio</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="stat-min">0</div>
+                        <div class="text">Mínimo</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="stat-max">0</div>
+                        <div class="text">Máximo</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="analysis-card">
+                <h3>🌍 Análisis Integrado Multi-Fuente</h3>
+                <div id="integrated-analysis">
+                    <div class="chart-placeholder">
+                        📊 Comparación entre NASA, ESA y datos locales
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <div class="alert success">
+                <span>✅</span>
+                <span>Sistema operativo - Todos los servicios activos</span>
+            </div>
+            
+            <div class="analysis-card">
+                <h3>📊 Resumen Ejecutivo</h3>
+                <div id="executive-summary">
+                    <div class="loading"></div> Cargando resumen...
+                </div>
+                
+                <div class="recommendations">
+                    <h4>💡 Recomendaciones para Planificadores</h4>
+                    <ul id="recommendations-list">
+                        <li>Cargando recomendaciones...</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="analysis-card">
+                <h3>🕒 Datos en Tiempo Real</h3>
+                <div class="time-series" id="realtime-data">
+                    <div class="loading"></div> Cargando datos en tiempo real...
+                </div>
+            </div>
+            
+            <div class="analysis-card">
+                <h3>⚠️ Alertas y Notificaciones</h3>
+                <div id="alerts-panel">
+                    <div class="alert warning">
+                        <span>⚠️</span>
+                        <span>Monitoreo automático de umbrales activado</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>🔄 Última actualización: <span id="last-update">--</span></span>
+            <span>📡 <span id="total-datapoints">--</span> puntos de datos integrados</span>
+            <span>⚡ Sistema en tiempo real</span>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let datasets = {
+            nasa: [],
+            esa: [],
+            lima: []
+        };
+        
+        // Initialize dashboard
+        async function initDashboard() {
+            updateLastUpdate();
+            setInterval(updateLastUpdate, 30000);
+            
+            try {
+                await Promise.all([
+                    loadDataSources(),
+                    loadIoTData(),
+                    loadExecutiveSummary(),
+                    loadRealtimeData()
+                ]);
+                
+                updateTotalDatapoints();
+            } catch (error) {
+                console.error('Error initializing dashboard:', error);
+                showErrorMessage('Error al inicializar el dashboard');
+            }
+        }
+        
+        async function loadDataSources() {
+            try {
+                // Load NASA datasets
+                const nasaResponse = await fetch(`${API_BASE}/nasa/datasets`);
+                datasets.nasa = await nasaResponse.json();
+                updateDataSourceMetrics('nasa', datasets.nasa);
+                
+                // Load ESA datasets
+                const esaResponse = await fetch(`${API_BASE}/esa/datasets`);
+                datasets.esa = await esaResponse.json();
+                updateDataSourceMetrics('esa', datasets.esa);
+                
+                // Load Lima datasets
+                const limaResponse = await fetch(`${API_BASE}/lima/datasets`);
+                datasets.lima = await limaResponse.json();
+                updateDataSourceMetrics('lima', datasets.lima);
+                
+                updateParameterOptions();
+            } catch (error) {
+                console.error('Error loading data sources:', error);
+            }
+        }
+        
+        function updateDataSourceMetrics(source, data) {
+            const totalCount = data.reduce((sum, item) => sum + item.count, 0);
+            document.getElementById(`${source}-count`).textContent = totalCount.toLocaleString();
+            
+            if (source === 'nasa') {
+                document.getElementById('nasa-params').textContent = new Set(data.map(d => d.parameter)).size;
+            } else if (source === 'esa') {
+                document.getElementById('esa-params').textContent = new Set(data.map(d => d.dataset)).size;
+            } else if (source === 'lima') {
+                document.getElementById('lima-stations').textContent = new Set(data.map(d => d.location)).size;
+            }
+        }
+        
+        function updateParameterOptions() {
+            const sourceSelect = document.getElementById('data-source');
+            const parameterSelect = document.getElementById('parameter');
+            const selectedSource = sourceSelect.value;
+            
+            parameterSelect.innerHTML = '<option value="">Seleccione parámetro</option>';
+            
+            if (datasets[selectedSource]) {
+                const parameters = [...new Set(datasets[selectedSource].map(d => d.parameter))];
+                parameters.forEach(param => {
+                    const option = document.createElement('option');
+                    option.value = param;
+                    option.textContent = param.replace(/_/g, ' ').toUpperCase();
+                    parameterSelect.appendChild(option);
+                });
+            }
+        }
+        
+        async function loadIoTData() {
+            try {
+                const response = await fetch(`${API_BASE}/analysis/timeseries/harbor_temp/stats?start=${new Date(Date.now() - 3600*1000).toISOString()}`);
+                const data = await response.json();
+                
+                const temp = data.avg ? Math.round(data.avg * 100) / 100 : '--';
+                document.getElementById('iot-temp').textContent = `${temp}°C`;
+                document.getElementById('iot-status').textContent = 'Activo';
+            } catch (error) {
+                document.getElementById('iot-temp').textContent = '--°C';
+                document.getElementById('iot-status').textContent = 'Error';
+            }
+        }
+        
+        async function loadAnalysis() {
+            const source = document.getElementById('data-source').value;
+            const parameter = document.getElementById('parameter').value;
+            
+            if (!parameter) {
+                document.getElementById('current-analysis').innerHTML = 
+                    '<div class="chart-placeholder">Seleccione un parámetro para ver el análisis</div>';
+                document.getElementById('stats-grid').style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/${source}/data/${datasets[source].find(d => d.parameter === parameter)?.dataset || datasets[source][0]?.dataset}/${parameter}?limit=50&hours_back=24`);
+                const data = await response.json();
+                
+                displayAnalysis(data);
+                updateStatsGrid(data.data);
+                loadIntegratedAnalysis(parameter);
+            } catch (error) {
+                console.error('Error loading analysis:', error);
+                showErrorMessage('Error al cargar el análisis');
+            }
+        }
+        
+        function displayAnalysis(data) {
+            const analysisDiv = document.getElementById('current-analysis');
+            
+            if (data.data && data.data.length > 0) {
+                const recentData = data.data.slice(0, 10);
+                let html = `
+                    <div style="margin-bottom: 16px;">
+                        <strong>${data.dataset} - ${data.parameter}</strong>
+                        <span style="color: #64748b; margin-left: 12px;">${data.count} puntos de datos</span>
+                    </div>
+                    <div class="time-series">
+                `;
+                
+                recentData.forEach(point => {
+                    html += `
+                        <div class="time-series-item">
+                            <span class="timestamp">${new Date(point.timestamp).toLocaleString('es-ES')}</span>
+                            <span class="value">${point.value.toFixed(2)}</span>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                analysisDiv.innerHTML = html;
+            } else {
+                analysisDiv.innerHTML = '<div class="chart-placeholder">No hay datos disponibles para este parámetro</div>';
+            }
+        }
+        
+        function updateStatsGrid(data) {
+            if (!data || data.length === 0) {
+                document.getElementById('stats-grid').style.display = 'none';
+                return;
+            }
+            
+            const values = data.map(d => d.value);
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            
+            document.getElementById('stat-count').textContent = data.length;
+            document.getElementById('stat-avg').textContent = avg.toFixed(2);
+            document.getElementById('stat-min').textContent = min.toFixed(2);
+            document.getElementById('stat-max').textContent = max.toFixed(2);
+            
+            document.getElementById('stats-grid').style.display = 'grid';
+        }
+        
+        async function loadIntegratedAnalysis(parameter) {
+            try {
+                const response = await fetch(`${API_BASE}/analysis/integrated/${parameter}?hours_back=24`);
+                const data = await response.json();
+                
+                const integratedDiv = document.getElementById('integrated-analysis');
+                
+                if (data.sources && data.sources.length > 0) {
+                    let html = `
+                        <div style="margin-bottom: 16px;">
+                            <strong>Análisis Integrado: ${parameter}</strong>
+                            <span style="color: #64748b; margin-left: 12px;">${data.total_data_points} puntos de múltiples fuentes</span>
+                        </div>
+                    `;
+                    
+                    data.sources.forEach(source => {
+                        html += `
+                            <div class="time-series-item">
+                                <span style="font-weight: 600;">${source.source}</span>
+                                <span>Promedio: ${source.avg_value?.toFixed(2)} | Min: ${source.min_value?.toFixed(2)} | Max: ${source.max_value?.toFixed(2)} | Puntos: ${source.count}</span>
+                            </div>
+                        `;
+                    });
+                    
+                    integratedDiv.innerHTML = html;
+                } else {
+                    integratedDiv.innerHTML = '<div class="chart-placeholder">No hay datos integrados disponibles para este parámetro</div>';
+                }
+            } catch (error) {
+                console.error('Error loading integrated analysis:', error);
+            }
+        }
+        
+        async function loadExecutiveSummary() {
+            try {
+                // Simulate executive summary generation
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const summaryDiv = document.getElementById('executive-summary');
+                summaryDiv.innerHTML = `
+                    <div style="margin-bottom: 12px;">
+                        <strong>Estado del Sistema:</strong> Operativo al 100%
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Fuentes de Datos:</strong> 3 activas (NASA, ESA, Lima)
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Cobertura Temporal:</strong> Últimas 24-48 horas
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Región de Análisis:</strong> Chancay y Lima Metropolitana
+                    </div>
+                `;
+                
+                updateRecommendations();
+            } catch (error) {
+                document.getElementById('executive-summary').innerHTML = 'Error al cargar resumen';
+            }
+        }
+        
+        function updateRecommendations() {
+            const recommendations = [
+                "Monitorear temperatura superficial del mar para optimización portuaria",
+                "Analizar patrones de tráfico para planificación de rutas logísticas", 
+                "Evaluar calidad del aire en relación con actividades portuarias",
+                "Integrar datos de precipitación para gestión de riesgos",
+                "Establecer alertas automáticas para valores extremos"
+            ];
+            
+            const list = document.getElementById('recommendations-list');
+            list.innerHTML = recommendations.map(rec => `<li>${rec}</li>`).join('');
+        }
+        
+        async function loadRealtimeData() {
+            try {
+                const response = await fetch(`${API_BASE}/nasa/data/MODIS_LST/land_surface_temperature?limit=5&hours_back=6`);
+                const data = await response.json();
+                
+                const realtimeDiv = document.getElementById('realtime-data');
+                
+                if (data.data && data.data.length > 0) {
+                    let html = '';
+                    data.data.slice(0, 5).forEach(point => {
+                        html += `
+                            <div class="time-series-item">
+                                <span class="timestamp">${new Date(point.timestamp).toLocaleString('es-ES')}</span>
+                                <span class="value">${point.value.toFixed(1)}°C</span>
+                            </div>
+                        `;
+                    });
+                    realtimeDiv.innerHTML = html;
+                } else {
+                    realtimeDiv.innerHTML = '<div style="text-align: center; color: #64748b;">Sin datos recientes</div>';
+                }
+            } catch (error) {
+                document.getElementById('realtime-data').innerHTML = '<div style="text-align: center; color: #dc2626;">Error al cargar datos</div>';
+            }
+            
+            // Update every 30 seconds
+            setTimeout(loadRealtimeData, 30000);
+        }
+        
+        function updateTotalDatapoints() {
+            const total = Object.values(datasets).flat().reduce((sum, dataset) => sum + dataset.count, 0);
+            document.getElementById('total-datapoints').textContent = total.toLocaleString();
+        }
+        
+        function updateLastUpdate() {
+            document.getElementById('last-update').textContent = new Date().toLocaleString('es-ES');
+        }
+        
+        function generateReport() {
+            const reportWindow = window.open('', '_blank');
+            reportWindow.document.write(`
+                <html>
+                <head><title>Reporte Gemelo Digital Chancay</title></head>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h1>🛰️ Reporte Gemelo Digital Chancay</h1>
+                    <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-ES')}</p>
+                    <h2>Resumen Ejecutivo</h2>
+                    <p>Sistema integrado de análisis espacial y temporal operativo con datos de NASA, ESA y Lima Municipal.</p>
+                    <h2>Fuentes de Datos Activas</h2>
+                    <ul>
+                        <li><strong>NASA:</strong> ${datasets.nasa.reduce((sum, d) => sum + d.count, 0)} puntos de datos</li>
+                        <li><strong>ESA:</strong> ${datasets.esa.reduce((sum, d) => sum + d.count, 0)} puntos de datos</li>
+                        <li><strong>Lima:</strong> ${datasets.lima.reduce((sum, d) => sum + d.count, 0)} puntos de datos</li>
+                    </ul>
+                    <p><em>Este reporte fue generado automáticamente por el sistema Gemelo Digital Chancay.</em></p>
+                </body>
+                </html>
+            `);
+        }
+        
+        function showErrorMessage(message) {
+            const alertsPanel = document.getElementById('alerts-panel');
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert error';
+            errorAlert.innerHTML = `<span>❌</span><span>${message}</span>`;
+            alertsPanel.appendChild(errorAlert);
+            
+            setTimeout(() => {
+                errorAlert.remove();
+            }, 5000);
+        }
+        
+        // Event listeners
+        document.getElementById('data-source').addEventListener('change', updateParameterOptions);
+        document.getElementById('parameter').addEventListener('change', loadAnalysis);
+        
+        // Initialize dashboard when page loads
+        window.addEventListener('load', initDashboard);
+    </script>
+</body>
+</html>

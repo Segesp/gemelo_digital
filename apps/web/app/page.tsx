@@ -6,6 +6,7 @@ import maplibregl, { Map } from 'maplibre-gl';
 const Scene3D = lazy(() => import('../components/Scene3D'));
 const Analysis3D = lazy(() => import('../components/Analysis3D'));
 const DeckGL3D = lazy(() => import('../components/DeckGL3D'));
+const Temporal3D = lazy(() => import('../components/Temporal3D'));
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
@@ -34,7 +35,7 @@ interface SpatialStats {
   std_value: number;
 }
 
-type ViewMode = '2d' | '3d-scene' | '3d-analysis' | '3d-geospatial';
+type ViewMode = '2d' | '3d-scene' | '3d-analysis' | '3d-geospatial' | '3d-temporal';
 
 export default function Home() {
   const mapRef = useRef<Map | null>(null);
@@ -268,6 +269,17 @@ export default function Home() {
           </Suspense>
         );
       
+      case '3d-temporal':
+        return (
+          <Suspense fallback={<div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a1a', color:'white'}}>Cargando análisis temporal 3D...</div>}>
+            <Temporal3D 
+              data={nasaData} 
+              parameter={selectedParameter}
+              dataset={selectedDataset}
+            />
+          </Suspense>
+        );
+      
       default:
         return <div ref={containerRef} style={{flex:1}} />;
     }
@@ -338,6 +350,20 @@ export default function Home() {
               }}
             >
               🌍 Geoespacial 3D
+            </button>
+            <button 
+              onClick={() => setViewMode('3d-temporal')}
+              style={{
+                padding:'6px 12px',
+                border:'1px solid #d1d5db',
+                borderRadius:'4px',
+                background: viewMode === '3d-temporal' ? '#3b82f6' : '#ffffff',
+                color: viewMode === '3d-temporal' ? 'white' : '#374151',
+                fontSize:'12px',
+                cursor:'pointer'
+              }}
+            >
+              ⏰ Temporal 3D
             </button>
           </div>
           
@@ -427,7 +453,8 @@ export default function Home() {
             viewMode === '2d' ? '2D MapLibre' :
             viewMode === '3d-scene' ? '3D Three.js' :
             viewMode === '3d-analysis' ? '3D Análisis Interactivo' :
-            '3D Geoespacial deck.gl'
+            viewMode === '3d-geospatial' ? '3D Geoespacial deck.gl' :
+            '3D Temporal'
           }</span>
         </div>
       </div>

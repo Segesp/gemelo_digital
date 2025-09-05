@@ -9,6 +9,7 @@ const Analysis3D = lazy(() => import('../components/Analysis3D'));
 const DeckGL3D = lazy(() => import('../components/DeckGL3D'));
 const Temporal3D = lazy(() => import('../components/Temporal3D'));
 const CityEngine3D = lazy(() => import('../components/CityEngine3DPolished'));
+const InnovativeDigitalTwin = lazy(() => import('../components/InnovativeDigitalTwin'));
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
@@ -37,7 +38,7 @@ interface SpatialStats {
   std_value: number;
 }
 
-type ViewMode = '2d' | '3d-scene' | '3d-analysis' | '3d-geospatial' | '3d-temporal' | 'city-engine';
+type ViewMode = '2d' | '3d-scene' | '3d-analysis' | '3d-geospatial' | '3d-temporal' | 'city-engine' | 'digital-twin';
 
 export default function Home() {
   const mapRef = useRef<Map | null>(null);
@@ -345,6 +346,20 @@ export default function Home() {
               </div>
             }>
               <CityEngine3D />
+            </Suspense>
+          </div>
+        );
+      
+      case 'digital-twin':
+        return (
+          <div className="flex-1">
+            <Suspense fallback={
+              <div className="loading-overlay">
+                <div className="loading">🏗️ Cargando Gemelo Digital Innovador...</div>
+                <div className="loading-details">Inicializando IA, IoT, Simulación y Tecnologías Avanzadas</div>
+              </div>
+            }>
+              <InnovativeDigitalTwin />
             </Suspense>
           </div>
         );

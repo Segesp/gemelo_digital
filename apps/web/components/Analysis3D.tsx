@@ -1,7 +1,7 @@
 "use client";
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, Line, Sphere, Text } from '@react-three/drei';
-import { useMemo, useRef, useState } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Html, Line, Sphere, Text, OrbitControls, Environment, Grid } from '@react-three/drei';
+import { useMemo, useRef, useState, Suspense } from 'react';
 import * as THREE from 'three';
 
 interface DataPoint {
@@ -17,12 +17,12 @@ interface Analysis3DProps {
   onPointSelect?: (point: DataPoint) => void;
 }
 
-// Convert lat/lng to 3D coordinates
+// Convert coordinates
 function latLngTo3D(lat: number, lng: number): [number, number, number] {
   const centerLat = -11.57;
   const centerLng = -77.27;
-  const x = (lng - centerLng) * 1000;
-  const z = (lat - centerLat) * 1000;
+  const x = (lng - centerLng) * 111320 * Math.cos(centerLat * Math.PI / 180) / 500;
+  const z = (lat - centerLat) * 110540 / 500;
   const y = 0;
   return [x, y, z];
 }
@@ -32,22 +32,28 @@ function InteractiveDataPoint({
   position, 
   color, 
   height,
-  onSelect 
+  onSelect,
+  isSelected
 }: { 
   point: DataPoint;
   position: [number, number, number];
   color: THREE.Color;
   height: number;
   onSelect?: (point: DataPoint) => void;
+  isSelected: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
-    if (meshRef.current && hovered) {
-      meshRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 5) * 0.1);
-    } else if (meshRef.current) {
-      meshRef.current.scale.setScalar(1);
+    if (meshRef.current) {
+      if (isSelected) {
+        meshRef.current.scale.setScalar(1.3 + Math.sin(state.clock.elapsedTime * 3) * 0.2);
+      } else if (hovered) {
+        meshRef.current.scale.setScalar(1.1);
+      } else {
+        meshRef.current.scale.setScalar(1);
+      }
     }
   });
 
@@ -59,19 +65,29 @@ function InteractiveDataPoint({
         onPointerOut={() => setHovered(false)}
         onClick={() => onSelect?.(point)}
         position={[0, height / 2, 0]}
+        castShadow
       >
-        <boxGeometry args={[0.8, height, 0.8]} />
+        <cylinderGeometry args={[0.4, 0.6, height, 8]} />
         <meshStandardMaterial 
           color={color} 
-          emissive={hovered ? color : new THREE.Color(0x000000)}
-          emissiveIntensity={hovered ? 0.3 : 0}
+          emissive={isSelected ? color.clone().multiplyScalar(0.4) : 
+                   hovered ? color.clone().multiplyScalar(0.2) : undefined}
+          emissiveIntensity={isSelected ? 0.6 : hovered ? 0.3 : 0}
+          transparent
+          opacity={0.9}
         />
       </mesh>
       
-      {/* Value label */}
+      <Sphere 
+        args={[0.2]} 
+        position={[0, height + 0.5, 0]}
+      >
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.3} />
+      </Sphere>
+      
       <Text
-        position={[0, height + 1, 0]}
-        fontSize={0.5}
+        position={[0, height + 1.2, 0]}
+        fontSize={0.4}
         color="white"
         anchorX="center"
         anchorY="middle"
@@ -79,266 +95,218 @@ function InteractiveDataPoint({
         {point.value.toFixed(1)}
       </Text>
       
-      {/* Hover info */}
       {hovered && (
         <Html position={[0, height + 2, 0]} center>
           <div style={{
-            background: 'rgba(0,0,0,0.8)',
+            background: 'rgba(0,0,0,0.9)',
             color: 'white',
-            padding: '8px',
-            borderRadius: '4px',
+            padding: '12px',
+            borderRadius: '8px',
             fontSize: '12px',
-            minWidth: '120px'
+            minWidth: '160px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
           }}>
-            <div><strong>Valor: {point.value}</strong></div>
-            <div>Lat: {point.latitude.toFixed(4)}</div>
-            <div>Lng: {point.longitude.toFixed(4)}</div>
-            <div>Tiempo: {new Date(point.timestamp).toLocaleTimeString()}</div>
+            <div style={{ marginBottom: '4px' }}>
+              <strong style={{ color: '#60a5fa' }}>📊 {point.value.toFixed(2)}</strong>
+            </div>
+            <div>📍 Lat: {point.latitude.toFixed(4)}</div>
+            <div>📍 Lng: {point.longitude.toFixed(4)}</div>
+            <div>⏰ {new Date(point.timestamp).toLocaleString()}</div>
+            <div style={{ marginTop: '8px', fontSize: '10px', color: '#94a3b8' }}>
+              Click para seleccionar
+            </div>
           </div>
         </Html>
+      )}
+      
+      {isSelected && (
+        <Line
+          points={[
+            [-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1], [-1, 0, -1]
+          ]}
+          color="#fbbf24"
+          lineWidth={3}
+        />
       )}
     </group>
   );
 }
 
-function DataConnections({ data }: { data: DataPoint[] }) {
-  const lines = useMemo(() => {
-    if (data.length < 2) return [];
+function AnalysisStats({ data, selectedPoint }: { data: DataPoint[], selectedPoint: DataPoint | null }) {
+  const stats = useMemo(() => {
+    if (data.length === 0) return { average: 0, min: 0, max: 0, count: 0, deviation: 0 };
     
-    const connections: [number, number, number][][] = [];
-    const sortedData = [...data].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const values = data.map(p => p.value);
+    const average = values.reduce((a, b) => a + b, 0) / values.length;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const deviation = Math.sqrt(
+      values.reduce((sum, value) => sum + Math.pow(value - average, 2), 0) / values.length
+    );
     
-    for (let i = 0; i < sortedData.length - 1; i++) {
-      const current = latLngTo3D(sortedData[i].latitude, sortedData[i].longitude);
-      const next = latLngTo3D(sortedData[i + 1].latitude, sortedData[i + 1].longitude);
-      
-      // Add height based on value
-      current[1] = sortedData[i].value * 0.1;
-      next[1] = sortedData[i + 1].value * 0.1;
-      
-      connections.push([current, next]);
-    }
-    
-    return connections;
+    return { average, min, max, count: data.length, deviation };
   }, [data]);
 
   return (
-    <>
-      {lines.map((line, index) => (
-        <Line
-          key={index}
-          points={line}
-          color="#61dafb"
-          lineWidth={2}
-          transparent
-          opacity={0.6}
-        />
-      ))}
-    </>
-  );
-}
-
-function ValueSurface({ data }: { data: DataPoint[] }) {
-  const surfaceRef = useRef<THREE.Mesh>(null);
-  
-  const { geometry, material } = useMemo(() => {
-    if (data.length === 0) return { geometry: null, material: null };
-    
-    // Create a grid for interpolated surface
-    const resolution = 20;
-    const geometry = new THREE.PlaneGeometry(50, 50, resolution - 1, resolution - 1);
-    const positions = geometry.attributes.position;
-    
-    // Interpolate values to grid
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      const z = positions.getZ(i);
-      
-      // Find nearest data points and interpolate
-      let totalWeight = 0;
-      let weightedSum = 0;
-      
-      data.forEach(point => {
-        const [px, , pz] = latLngTo3D(point.latitude, point.longitude);
-        const distance = Math.sqrt((x - px) ** 2 + (z - pz) ** 2);
-        const weight = 1 / (distance + 1); // Inverse distance weighting
+    <Html position={[0, 15, 0]} center>
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        padding: '16px',
+        borderRadius: '12px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+        fontSize: '14px',
+        minWidth: '280px',
+        fontFamily: 'Inter, sans-serif'
+      }}>
+        <h3 style={{ margin: '0 0 12px 0', color: '#1e293b', fontSize: '16px' }}>
+          📊 Análisis Estadístico
+        </h3>
         
-        totalWeight += weight;
-        weightedSum += point.value * weight;
-      });
-      
-      const interpolatedValue = totalWeight > 0 ? weightedSum / totalWeight : 0;
-      positions.setY(i, interpolatedValue * 0.05); // Scale height
-    }
-    
-    geometry.computeVertexNormals();
-    
-    const material = new THREE.MeshStandardMaterial({
-      color: '#4ade80',
-      wireframe: true,
-      transparent: true,
-      opacity: 0.4
-    });
-    
-    return { geometry, material };
-  }, [data]);
-
-  if (!geometry || !material) return null;
-
-  return (
-    <mesh ref={surfaceRef} geometry={geometry} material={material} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+          <div>
+            <div style={{ color: '#64748b', fontSize: '12px' }}>Promedio</div>
+            <div style={{ color: '#059669', fontWeight: 'bold' }}>{stats.average.toFixed(2)}</div>
+          </div>
+          <div>
+            <div style={{ color: '#64748b', fontSize: '12px' }}>Desv. Estándar</div>
+            <div style={{ color: '#dc2626', fontWeight: 'bold' }}>{stats.deviation.toFixed(2)}</div>
+          </div>
+          <div>
+            <div style={{ color: '#64748b', fontSize: '12px' }}>Mínimo</div>
+            <div style={{ color: '#2563eb', fontWeight: 'bold' }}>{stats.min.toFixed(2)}</div>
+          </div>
+          <div>
+            <div style={{ color: '#64748b', fontSize: '12px' }}>Máximo</div>
+            <div style={{ color: '#ea580c', fontWeight: 'bold' }}>{stats.max.toFixed(2)}</div>
+          </div>
+        </div>
+        
+        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
+          <div style={{ color: '#64748b', fontSize: '12px' }}>Total de Puntos</div>
+          <div style={{ color: '#1e293b', fontWeight: 'bold' }}>{stats.count}</div>
+        </div>
+        
+        {selectedPoint && (
+          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '8px' }}>
+            <div style={{ color: '#64748b', fontSize: '12px' }}>Punto Seleccionado</div>
+            <div style={{ color: '#7c3aed', fontWeight: 'bold' }}>
+              {selectedPoint.value.toFixed(2)} | {new Date(selectedPoint.timestamp).toLocaleTimeString()}
+            </div>
+          </div>
+        )}
+      </div>
+    </Html>
   );
 }
 
-function HeatmapAnalysis({ data }: { data: DataPoint[] }) {
-  const circles = useMemo(() => {
-    return data.map((point, index) => {
-      const [x, y, z] = latLngTo3D(point.latitude, point.longitude);
-      const intensity = point.value / 50; // Normalize intensity
-      const radius = Math.max(intensity * 5, 0.5);
-      
-      return (
-        <Sphere
-          key={index}
-          position={[x, 0.1, z]}
-          args={[radius, 16, 16]}
-        >
-          <meshStandardMaterial
-            color={new THREE.Color().setHSL(1 - intensity, 0.8, 0.6)}
-            transparent
-            opacity={0.6}
-          />
-        </Sphere>
-      );
-    });
-  }, [data]);
-
-  return <>{circles}</>;
-}
-
-export default function Analysis3D({ data, parameter, onPointSelect }: Analysis3DProps) {
+function Analysis3DContent({ data, parameter, onPointSelect }: Analysis3DProps) {
   const [selectedPoint, setSelectedPoint] = useState<DataPoint | null>(null);
-  const [analysisMode, setAnalysisMode] = useState<'points' | 'surface' | 'heatmap' | 'connections'>('points');
-
-  const processedData = useMemo(() => {
-    return data.map(point => {
-      const [x, y, z] = latLngTo3D(point.latitude, point.longitude);
-      const height = Math.max(point.value * 0.1, 1);
-      const color = new THREE.Color().setHSL(
-        Math.max(0, Math.min(1, 1 - point.value / 50)),
-        0.8,
-        0.6
-      );
-      
-      return { point, position: [x, y, z] as [number, number, number], height, color };
-    });
-  }, [data]);
 
   const handlePointSelect = (point: DataPoint) => {
     setSelectedPoint(point);
     onPointSelect?.(point);
   };
 
-  const stats = useMemo(() => {
-    if (data.length === 0) return null;
+  const processedData = useMemo(() => {
+    if (!data || data.length === 0) return [];
     
-    const values = data.map(d => d.value);
-    const avg = values.reduce((a, b) => a + b, 0) / values.length;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const stdDev = Math.sqrt(values.reduce((a, b) => a + (b - avg) ** 2, 0) / values.length);
+    const maxValue = Math.max(...data.map(p => p.value));
+    const minValue = Math.min(...data.map(p => p.value));
     
-    return { avg, min, max, stdDev, count: data.length };
+    return data.map(point => {
+      const [x, y, z] = latLngTo3D(point.latitude, point.longitude);
+      const normalizedValue = maxValue > minValue ? 
+        (point.value - minValue) / (maxValue - minValue) : 0.5;
+      const height = Math.max(normalizedValue * 12 + 1, 0.5);
+      
+      const color = new THREE.Color().setHSL(
+        (1 - normalizedValue) * 0.6,
+        0.8,
+        0.5
+      );
+      
+      return { ...point, position: [x, y, z] as [number, number, number], height, color };
+    });
   }, [data]);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      {/* Analysis Mode Controls */}
-      <div style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        background: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        padding: '12px',
-        borderRadius: '8px',
-        zIndex: 1000,
-        minWidth: '200px'
-      }}>
-        <div style={{ marginBottom: '8px' }}><strong>Análisis 3D - {parameter}</strong></div>
-        
-        <div style={{ marginBottom: '8px' }}>
-          <label style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>Modo de visualización:</label>
-          <select 
-            value={analysisMode}
-            onChange={(e) => setAnalysisMode(e.target.value as any)}
-            style={{ 
-              background: '#374151', 
-              color: 'white', 
-              border: '1px solid #6b7280',
-              borderRadius: '4px',
-              padding: '4px',
-              width: '100%'
-            }}
-          >
-            <option value="points">Puntos de datos</option>
-            <option value="surface">Superficie interpolada</option>
-            <option value="heatmap">Mapa de calor</option>
-            <option value="connections">Conexiones temporales</option>
-          </select>
-        </div>
+    <>
+      <OrbitControls
+        enablePan={true}
+        enableZoom={true}
+        enableRotate={true}
+        minDistance={10}
+        maxDistance={80}
+        maxPolarAngle={Math.PI / 2.1}
+        dampingFactor={0.05}
+        enableDamping
+      />
+      
+      <Environment preset="dawn" />
+      
+      <ambientLight intensity={0.4} />
+      <directionalLight
+        position={[15, 20, 15]}
+        intensity={1}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+      />
+      
+      <Grid 
+        position={[0, -0.5, 0]}
+        args={[100, 100]}
+        cellSize={5}
+        cellThickness={0.5}
+        cellColor="#666"
+        sectionSize={25}
+        sectionThickness={1}
+        sectionColor="#888"
+        fadeDistance={50}
+        fadeStrength={1}
+      />
 
-        {stats && (
-          <div style={{ fontSize: '11px', lineHeight: '1.4' }}>
-            <div><strong>Estadísticas:</strong></div>
-            <div>Puntos: {stats.count}</div>
-            <div>Promedio: {stats.avg.toFixed(2)}</div>
-            <div>Min/Max: {stats.min.toFixed(1)} / {stats.max.toFixed(1)}</div>
-            <div>Desv. Est: {stats.stdDev.toFixed(2)}</div>
-          </div>
-        )}
+      {processedData.map((point, index) => (
+        <InteractiveDataPoint
+          key={index}
+          point={point}
+          position={point.position}
+          color={point.color}
+          height={point.height}
+          onSelect={handlePointSelect}
+          isSelected={selectedPoint === point}
+        />
+      ))}
+      
+      <AnalysisStats data={data} selectedPoint={selectedPoint} />
+    </>
+  );
+}
 
-        {selectedPoint && (
-          <div style={{ 
-            marginTop: '8px', 
-            padding: '8px', 
-            background: 'rgba(59, 130, 246, 0.3)',
-            borderRadius: '4px',
-            fontSize: '11px'
-          }}>
-            <div><strong>Punto seleccionado:</strong></div>
-            <div>Valor: {selectedPoint.value}</div>
-            <div>Coordenadas: {selectedPoint.latitude.toFixed(4)}, {selectedPoint.longitude.toFixed(4)}</div>
-            <div>Tiempo: {new Date(selectedPoint.timestamp).toLocaleString()}</div>
-          </div>
-        )}
-      </div>
-
-      {/* 3D Scene */}
-      <Canvas camera={{ position: [30, 25, 30], fov: 60 }}>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 20, 10]} intensity={1} />
-        <pointLight position={[-10, 10, -10]} intensity={0.5} />
-        
-        {analysisMode === 'points' && (
-          <>
-            {processedData.map((item, index) => (
-              <InteractiveDataPoint
-                key={index}
-                point={item.point}
-                position={item.position}
-                color={item.color}
-                height={item.height}
-                onSelect={handlePointSelect}
-              />
-            ))}
-          </>
-        )}
-        
-        {analysisMode === 'surface' && <ValueSurface data={data} />}
-        {analysisMode === 'heatmap' && <HeatmapAnalysis data={data} />}
-        {analysisMode === 'connections' && <DataConnections data={data} />}
+export default function Analysis3D({ data, parameter, onPointSelect }: Analysis3DProps) {
+  return (
+    <div className="canvas-container">
+      <Canvas shadows camera={{ position: [25, 20, 25], fov: 60 }}>
+        <Suspense fallback={null}>
+          <Analysis3DContent data={data} parameter={parameter} onPointSelect={onPointSelect} />
+        </Suspense>
       </Canvas>
+      
+      <div className="stats-overlay">
+        <div style={{ marginBottom: '8px' }}>
+          <strong style={{ color: '#7c3aed' }}>📊 Vista Análisis 3D - {parameter}</strong>
+        </div>
+        <div style={{ fontSize: '12px', color: '#64748b' }}>
+          <div>🖱️ <strong>Click:</strong> Seleccionar punto de datos</div>
+          <div>👆 <strong>Hover:</strong> Ver detalles del punto</div>
+          <div>🔄 <strong>Rotación:</strong> Arrastrar para rotar vista</div>
+          <div>📈 <strong>Análisis:</strong> Estadísticas en tiempo real</div>
+          <div style={{ marginTop: '8px', padding: '4px', background: 'rgba(124, 58, 237, 0.1)', borderRadius: '4px' }}>
+            <strong>🎯 Funciones:</strong> Análisis interactivo con estadísticas en tiempo real
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

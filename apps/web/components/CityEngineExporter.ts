@@ -82,6 +82,48 @@ export class CityEngineExporter {
     URL.revokeObjectURL(url);
   }
 
+  static exportToJSON(buildings: any[], filename: string = 'city_model.json'): void {
+    const exportData = {
+      metadata: {
+        version: '1.0',
+        type: 'CityEngine',
+        generator: 'Gemelo Digital Chancay',
+        timestamp: new Date().toISOString(),
+        totalBuildings: buildings.length
+      },
+      buildings: buildings.map(building => ({
+        id: building.id,
+        position: building.position,
+        dimensions: {
+          width: building.width,
+          height: building.height,
+          depth: building.depth
+        },
+        type: building.type,
+        color: building.color,
+        rotation: building.rotation,
+        properties: building.properties
+      })),
+      zones: [
+        { name: 'Puerto', type: 'port', position: [0, -15], size: [15, 8] },
+        { name: 'Comercial', type: 'commercial', position: [-8, 0], size: [8, 12] },
+        { name: 'Residencial', type: 'residential', position: [8, 5], size: [12, 15] },
+        { name: 'Industrial', type: 'industrial', position: [0, 15], size: [10, 6] }
+      ]
+    };
+
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+  }
+
   static exportScreenshot(canvas: HTMLCanvasElement, filename: string = 'city_view.png'): void {
     canvas.toBlob((blob) => {
       if (blob) {

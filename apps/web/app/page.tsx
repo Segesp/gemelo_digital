@@ -8,6 +8,7 @@ const Scene3D = lazy(() => import('../components/Scene3D'));
 const Analysis3D = lazy(() => import('../components/Analysis3D'));
 const DeckGL3D = lazy(() => import('../components/DeckGL3D'));
 const Temporal3D = lazy(() => import('../components/Temporal3D'));
+const CityEngine3D = lazy(() => import('../components/CityEngine3D'));
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
@@ -36,7 +37,7 @@ interface SpatialStats {
   std_value: number;
 }
 
-type ViewMode = '2d' | '3d-scene' | '3d-analysis' | '3d-geospatial' | '3d-temporal';
+type ViewMode = '2d' | '3d-scene' | '3d-analysis' | '3d-geospatial' | '3d-temporal' | 'city-engine';
 
 export default function Home() {
   const mapRef = useRef<Map | null>(null);
@@ -326,6 +327,23 @@ export default function Home() {
               </div>
             }>
               <Temporal3D 
+                data={nasaData} 
+                parameter={selectedParameter}
+                dataset={selectedDataset}
+              />
+            </Suspense>
+          </div>
+        );
+      
+      case 'city-engine':
+        return (
+          <div className="flex-1">
+            <Suspense fallback={
+              <div className="loading-overlay">
+                <div className="loading">🏗️ Cargando City Engine...</div>
+              </div>
+            }>
+              <CityEngine3D 
                 data={nasaData} 
                 parameter={selectedParameter}
                 dataset={selectedDataset}

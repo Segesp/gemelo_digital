@@ -10,7 +10,7 @@ export function AdvancedSimulationEngine({ mode }: { mode: string }) {
   useEffect(() => {
     if (isRunning) {
       const interval = setInterval(() => {
-        setSimulationData(prev => ({
+        setSimulationData((prev: any) => ({
           ...prev,
           [simulationType]: generateSimulationData(simulationType)
         }));

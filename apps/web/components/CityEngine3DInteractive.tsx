@@ -1,10 +1,14 @@
 "use client";
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Environment, Grid, Text, Html, Box, Line, Sphere } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Environment, Grid, Text, Html, Box, Line, Sphere, Stats } from '@react-three/drei';
 import { Suspense, useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
 
 import { ProfessionalRoadBuilder, ProfessionalMeasurementTools, ProfessionalExportTools } from './ProfessionalUrbanTools';
+import { InstancedBuildings, GPUTerrain, PerformanceMonitor } from './PerformanceOptimizations';
+import { AdvancedLighting, AdvancedPostProcessing, WeatherEffects, DynamicSkybox } from './AdvancedLighting';
+import { ModernToolbar, CityMetricsDashboard, BuildingPalette } from './ModernUI';
+import { useCityEngineStore, useBuildings, useRoads, useViewSettings } from '../utils/cityEngineStore';
 
 // Enhanced interfaces for professional 3D interaction
 interface Vector3D {

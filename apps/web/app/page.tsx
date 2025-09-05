@@ -8,7 +8,7 @@ const Scene3D = lazy(() => import('../components/Scene3D'));
 const Analysis3D = lazy(() => import('../components/Analysis3D'));
 const DeckGL3D = lazy(() => import('../components/DeckGL3D'));
 const Temporal3D = lazy(() => import('../components/Temporal3D'));
-const CityEngine3D = lazy(() => import('../components/CityEngine3DInteractive'));
+const CityEngine3D = lazy(() => import('../components/CityEngine3DPolished'));
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
@@ -340,7 +340,8 @@ export default function Home() {
           <div className="flex-1">
             <Suspense fallback={
               <div className="loading-overlay">
-                <div className="loading">🏗️ Cargando Professional City Engine...</div>
+                <div className="loading">🚀 Cargando City Engine Profesional Avanzado...</div>
+                <div className="loading-details">Inicializando tecnologías de planificación urbana de última generación</div>
               </div>
             }>
               <CityEngine3D />

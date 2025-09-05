@@ -490,35 +490,87 @@ function Professional3DBuilding({
   );
 }
 
-// Professional Road Component with realistic materials
+// Professional Road Component with realistic materials and markings
 function Professional3DRoad({ road }: { road: Road }) {
   const points = useMemo(() => {
     return road.points.map(point => new THREE.Vector3(...point));
   }, [road.points]);
 
   const roadGeometry = useMemo(() => {
+    if (points.length < 2) return new THREE.BufferGeometry();
+    
     const curve = new THREE.CatmullRomCurve3(points);
     const tubeGeometry = new THREE.TubeGeometry(curve, 20, road.width / 2, 8, false);
     return tubeGeometry;
   }, [points, road.width]);
 
   const roadMaterial = useMemo(() => {
-    const material = new THREE.MeshStandardMaterial({
-      color: road.color,
+    const baseColor = road.type === 'highway' ? '#2a2a2a' : 
+                     road.type === 'avenue' ? '#353535' : 
+                     road.type === 'pedestrian' ? '#8b7355' : '#404040';
+    
+    return new THREE.MeshStandardMaterial({
+      color: baseColor,
       roughness: 0.8,
       metalness: 0.1
     });
-    return material;
-  }, [road.color]);
+  }, [road.type]);
+
+  // Road markings geometry
+  const markingsGeometry = useMemo(() => {
+    if (points.length < 2) return new THREE.BufferGeometry();
+    
+    const curve = new THREE.CatmullRomCurve3(points);
+    const lineGeometry = new THREE.TubeGeometry(curve, 40, 0.05, 3, false);
+    return lineGeometry;
+  }, [points]);
 
   return (
-    <mesh geometry={roadGeometry} material={roadMaterial} receiveShadow>
-      {/* Road markings */}
-      <mesh position={[0, 0.01, 0]}>
-        <primitive object={roadGeometry} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.3} />
+    <group>
+      {/* Main road surface */}
+      <mesh geometry={roadGeometry} material={roadMaterial} receiveShadow>
+        {/* Road surface details */}
       </mesh>
-    </mesh>
+      
+      {/* Road markings - center line */}
+      {road.type !== 'pedestrian' && (
+        <mesh geometry={markingsGeometry} position={[0, 0.01, 0]}>
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+        </mesh>
+      )}
+      
+      {/* Lane dividers for highways */}
+      {road.type === 'highway' && (
+        <>
+          <mesh geometry={markingsGeometry} position={[road.width * 0.25, 0.01, 0]}>
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
+          </mesh>
+          <mesh geometry={markingsGeometry} position={[-road.width * 0.25, 0.01, 0]}>
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
+          </mesh>
+        </>
+      )}
+      
+      {/* Street lights for major roads */}
+      {(road.type === 'avenue' || road.type === 'highway') && points.map((point, index) => (
+        index % 3 === 0 && (
+          <group key={index} position={[point.x + road.width, point.y, point.z]}>
+            {/* Street light pole */}
+            <mesh position={[0, 3, 0]}>
+              <cylinderGeometry args={[0.1, 0.1, 6]} />
+              <meshStandardMaterial color="#666666" />
+            </mesh>
+            {/* Light fixture */}
+            <mesh position={[0, 6, 0]}>
+              <sphereGeometry args={[0.3]} />
+              <meshBasicMaterial color="#ffffaa" />
+            </mesh>
+            {/* Actual light */}
+            <pointLight position={[0, 6, 0]} color="#ffffaa" intensity={0.3} distance={15} />
+          </group>
+        )
+      ))}
+    </group>
   );
 }
 
@@ -566,7 +618,7 @@ function MeasurementTool({ measurements }: { measurements: MeasurementData[] }) 
   );
 }
 
-// Professional Terrain System
+// Professional Terrain System with Real-time Modification
 function TerrainEditor({ 
   mode, 
   onTerrainModify 
@@ -575,8 +627,9 @@ function TerrainEditor({
   onTerrainModify: (position: [number, number, number], operation: string, radius: number) => void;
 }) {
   const terrainRef = useRef<THREE.Mesh>(null);
+  const [heightmapData, setHeightmapData] = useState<Float32Array | null>(null);
   
-  // Create heightmap-based terrain
+  // Create heightmap-based terrain with real modification capability
   const terrainGeometry = useMemo(() => {
     const geometry = new THREE.PlaneGeometry(200, 200, 100, 100);
     geometry.rotateX(-Math.PI / 2);
@@ -590,10 +643,53 @@ function TerrainEditor({
       positions[i] = Math.sin(x / 20) * 2 + Math.cos(z / 15) * 1.5;
     }
     
+    // Store initial heightmap data
+    setHeightmapData(new Float32Array(positions));
+    
     geometry.attributes.position.needsUpdate = true;
     geometry.computeVertexNormals();
     return geometry;
   }, []);
+  
+  // Real-time terrain modification
+  const modifyTerrain = useCallback((position: [number, number, number], operation: string, radius: number) => {
+    if (!terrainRef.current || !heightmapData) return;
+    
+    const geometry = terrainRef.current.geometry as THREE.PlaneGeometry;
+    const positions = geometry.attributes.position.array as Float32Array;
+    const [clickX, clickY, clickZ] = position;
+    
+    // Find affected vertices within radius
+    for (let i = 0; i < positions.length; i += 3) {
+      const x = positions[i];
+      const y = positions[i + 1];
+      const z = positions[i + 2];
+      
+      const distance = Math.sqrt((x - clickX) ** 2 + (z - clickZ) ** 2);
+      
+      if (distance <= radius) {
+        const influence = Math.max(0, 1 - distance / radius); // Smooth falloff
+        
+        switch (operation) {
+          case 'raise':
+            positions[i + 1] += influence * 2;
+            break;
+          case 'lower':
+            positions[i + 1] -= influence * 2;
+            break;
+          case 'flatten':
+            positions[i + 1] = positions[i + 1] * (1 - influence * 0.5);
+            break;
+          case 'water':
+            positions[i + 1] = Math.min(positions[i + 1], -1 * influence);
+            break;
+        }
+      }
+    }
+    
+    geometry.attributes.position.needsUpdate = true;
+    geometry.computeVertexNormals();
+  }, [heightmapData]);
   
   const terrainMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
@@ -607,9 +703,10 @@ function TerrainEditor({
   const handleTerrainClick = useCallback((event: ThreeEvent<MouseEvent>) => {
     if (mode.mode === 'terrain' && mode.terrainTool) {
       const point = event.point;
+      modifyTerrain([point.x, point.y, point.z], mode.terrainTool, 5);
       onTerrainModify([point.x, point.y, point.z], mode.terrainTool, 5);
     }
-  }, [mode, onTerrainModify]);
+  }, [mode, modifyTerrain, onTerrainModify]);
   
   return (
     <mesh 
@@ -817,20 +914,38 @@ function BuildingPreview({
         <meshStandardMaterial 
           color={isValidPlacement ? template.color : '#ff0000'}
           transparent 
-          opacity={0.5}
+          opacity={0.6}
           wireframe
         />
       </mesh>
       
-      {/* Placement indicator */}
+      {/* Enhanced placement indicator */}
       <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[template.baseWidth / 2, template.baseWidth / 2 + 1, 16]} />
         <meshBasicMaterial 
           color={isValidPlacement ? '#00ff00' : '#ff0000'}
           transparent 
-          opacity={0.5}
+          opacity={0.7}
         />
       </mesh>
+      
+      {/* Validation status indicator */}
+      <Html position={[0, template.baseHeight + 2, 0]} center>
+        <div className={`px-3 py-1 rounded text-xs font-semibold ${
+          isValidPlacement 
+            ? 'bg-green-600 text-white' 
+            : 'bg-red-600 text-white'
+        }`}>
+          {isValidPlacement ? '✅ Válido' : '❌ No válido'}
+        </div>
+      </Html>
+      
+      {/* Cost indicator */}
+      <Html position={[0, template.baseHeight + 4, 0]} center>
+        <div className="bg-blue-600 text-white px-2 py-1 rounded text-xs">
+          💰 ${template.cost.toLocaleString()}
+        </div>
+      </Html>
     </group>
   );
 }
@@ -847,7 +962,8 @@ function ProfessionalControlPanel({
   clearMeasurements,
   showServiceRadius,
   setShowServiceRadius,
-  onExport
+  onExport,
+  roadPoints
 }: {
   mode: InteractionMode;
   setMode: (mode: InteractionMode) => void;
@@ -860,6 +976,7 @@ function ProfessionalControlPanel({
   showServiceRadius: boolean;
   setShowServiceRadius: (show: boolean) => void;
   onExport: (type: string) => void;
+  roadPoints: [number, number, number][];
 }) {
   const [selectedCategory, setSelectedCategory] = useState<BuildingData['type'] | 'all'>('all');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -870,11 +987,11 @@ function ProfessionalControlPanel({
     selectedCategory === 'all' || template.type === selectedCategory
   );
 
-  // Calculate city statistics
+  // Calculate city statistics with real-time economic simulation
   const cityStats = useMemo(() => {
     const population = buildings.reduce((sum, b) => {
       if (b.type === 'residential') {
-        return sum + (b.properties.units || 0) * 2;
+        return sum + (b.properties.units || 0) * 2.3; // Average occupancy rate
       }
       return sum;
     }, 0);
@@ -885,7 +1002,37 @@ function ProfessionalControlPanel({
 
     const totalValue = buildings.reduce((sum, b) => sum + b.properties.value, 0);
     
-    return { population, jobs, totalValue, buildingCount: buildings.length };
+    // Calculate municipal economics
+    const totalRevenue = buildings.reduce((sum, b) => {
+      return sum + (b.economics.revenue || 0) + b.economics.propertyTax;
+    }, 0);
+    
+    const totalOperatingCosts = buildings.reduce((sum, b) => {
+      return sum + b.economics.maintenanceCost + (b.economics.operatingCosts || 0);
+    }, 0);
+    
+    const municipalBudget = totalRevenue - totalOperatingCosts;
+    
+    // Calculate sustainability metrics
+    const totalPollution = buildings.reduce((sum, b) => sum + b.environment.pollutionGenerated, 0);
+    const avgEnergyEfficiency = buildings.length > 0 ? 
+      buildings.reduce((sum, b) => sum + b.environment.energyEfficiency, 0) / buildings.length : 0;
+    
+    // Employment rate calculation
+    const employmentRate = population > 0 ? Math.min((jobs / population) * 100, 100) : 0;
+    
+    return { 
+      population: Math.round(population), 
+      jobs, 
+      totalValue, 
+      buildingCount: buildings.length,
+      municipalBudget: Math.round(municipalBudget),
+      totalRevenue: Math.round(totalRevenue),
+      totalOperatingCosts: Math.round(totalOperatingCosts),
+      totalPollution: Math.round(totalPollution),
+      avgEnergyEfficiency: Math.round(avgEnergyEfficiency),
+      employmentRate: Math.round(employmentRate)
+    };
   }, [buildings]);
 
   return (
@@ -1016,6 +1163,55 @@ function ProfessionalControlPanel({
           </div>
         )}
 
+        {/* Road Construction Tools */}
+        {mode.mode === 'road' && (
+          <div className="mb-4 p-3 bg-gray-800 rounded border border-orange-600">
+            <h4 className="text-sm font-semibold mb-2 text-orange-400">🛣️ Herramientas de Carreteras:</h4>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button
+                onClick={() => setMode({ mode: 'road', roadType: 'street' })}
+                className={`px-3 py-2 text-xs rounded ${
+                  mode.roadType === 'street' ? 'bg-orange-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                🛣️ Calle (30km/h)
+              </button>
+              <button
+                onClick={() => setMode({ mode: 'road', roadType: 'avenue' })}
+                className={`px-3 py-2 text-xs rounded ${
+                  mode.roadType === 'avenue' ? 'bg-orange-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                🛤️ Avenida (50km/h)
+              </button>
+              <button
+                onClick={() => setMode({ mode: 'road', roadType: 'highway' })}
+                className={`px-3 py-2 text-xs rounded ${
+                  mode.roadType === 'highway' ? 'bg-orange-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                🛥️ Autopista (80km/h)
+              </button>
+              <button
+                onClick={() => setMode({ mode: 'road', roadType: 'pedestrian' })}
+                className={`px-3 py-2 text-xs rounded ${
+                  mode.roadType === 'pedestrian' ? 'bg-orange-600' : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+              >
+                🚶 Peatonal
+              </button>
+            </div>
+            <div className="text-xs text-gray-400">
+              Haz clic para agregar puntos de ruta. Mínimo 2 puntos para crear carretera.
+            </div>
+            {roadPoints.length > 0 && (
+              <div className="mt-2 text-xs text-orange-400">
+                Puntos: {roadPoints.length} | {roadPoints.length >= 2 ? 'Listo para construir' : 'Necesita más puntos'}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Terrain Tools */}
         {mode.mode === 'terrain' && (
           <div className="mb-4 p-3 bg-gray-800 rounded border border-amber-600">
@@ -1143,15 +1339,40 @@ function ProfessionalControlPanel({
           </div>
         </div>
 
-        {/* City Statistics */}
+        {/* City Statistics with Real-time Economics */}
         <div className="mb-4 p-3 bg-gray-800 rounded border border-gray-600">
           <h4 className="text-sm font-semibold mb-2 text-yellow-400">📊 Estadísticas de la Ciudad:</h4>
           <div className="text-xs space-y-1">
             <div>🏗️ Edificios: {cityStats.buildingCount}</div>
             <div>👥 Población: {cityStats.population.toLocaleString()}</div>
             <div>💼 Empleos: {cityStats.jobs.toLocaleString()}</div>
+            <div>📈 Tasa empleo: {cityStats.employmentRate}%</div>
             <div>💰 Valor total: ${cityStats.totalValue.toLocaleString()}</div>
             <div>🛣️ Carreteras: {roads.length}</div>
+          </div>
+        </div>
+
+        {/* Municipal Economics */}
+        <div className="mb-4 p-3 bg-gray-800 rounded border border-green-600">
+          <h4 className="text-sm font-semibold mb-2 text-green-400">💰 Economía Municipal:</h4>
+          <div className="text-xs space-y-1">
+            <div>💵 Ingresos: ${cityStats.totalRevenue.toLocaleString()}/año</div>
+            <div>💸 Gastos: ${cityStats.totalOperatingCosts.toLocaleString()}/año</div>
+            <div className={`font-semibold ${cityStats.municipalBudget >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              🏛️ Presupuesto: ${cityStats.municipalBudget.toLocaleString()}/año
+            </div>
+          </div>
+        </div>
+
+        {/* Environmental Metrics */}
+        <div className="mb-4 p-3 bg-gray-800 rounded border border-emerald-600">
+          <h4 className="text-sm font-semibold mb-2 text-emerald-400">🌍 Sostenibilidad:</h4>
+          <div className="text-xs space-y-1">
+            <div>🏭 Contaminación: {cityStats.totalPollution} unidades</div>
+            <div>⚡ Eficiencia energética: {cityStats.avgEnergyEfficiency}%</div>
+            <div className={`${cityStats.totalPollution < 50 ? 'text-green-400' : cityStats.totalPollution < 100 ? 'text-yellow-400' : 'text-red-400'}`}>
+              🌱 Estado ambiental: {cityStats.totalPollution < 50 ? 'Excelente' : cityStats.totalPollution < 100 ? 'Moderado' : 'Crítico'}
+            </div>
           </div>
         </div>
 
@@ -1377,10 +1598,11 @@ function InteractiveCityScene() {
     }
   }, [buildings, roads, measurements, vegetation, gl]);
 
-  // Terrain modification handler
+  // Enhanced terrain modification handler
   const handleTerrainModify = useCallback((position: [number, number, number], operation: string, radius: number) => {
-    // This would modify the terrain mesh in a real implementation
-    console.log(`Terrain modification: ${operation} at`, position, `radius: ${radius}`);
+    console.log(`🏔️ Terrain modification: ${operation} at [${position[0].toFixed(1)}, ${position[1].toFixed(1)}, ${position[2].toFixed(1)}] with radius ${radius}m`);
+    // The actual terrain modification is handled directly in the TerrainEditor component
+    // This callback is for additional processing or validation if needed
   }, []);
 
   // Building update handler
@@ -1389,7 +1611,7 @@ function InteractiveCityScene() {
     setEditingBuilding(null);
   }, []);
 
-  // Check placement validity
+  // Enhanced placement validity check
   const isValidPlacement = useCallback((position: [number, number, number], template: BuildingTemplate) => {
     // Check for overlaps with existing buildings
     const hasOverlap = buildings.some(building => {
@@ -1397,11 +1619,38 @@ function InteractiveCityScene() {
         Math.pow(building.position[0] - position[0], 2) + 
         Math.pow(building.position[2] - position[2], 2)
       );
-      return distance < (building.width + template.baseWidth) / 2;
+      const minDistance = (building.width + template.baseWidth) / 2 + 2; // Add 2m safety margin
+      return distance < minDistance;
     });
     
-    return !hasOverlap;
-  }, [buildings]);
+    // Check road access requirement
+    let hasRoadAccess = true;
+    if (template.requirements?.nearRoad) {
+      hasRoadAccess = roads.some(road => {
+        return road.points.some(point => {
+          const distance = Math.sqrt(
+            Math.pow(point[0] - position[0], 2) + 
+            Math.pow(point[2] - position[2], 2)
+          );
+          return distance <= 10; // Must be within 10m of a road
+        });
+      });
+    }
+    
+    // Check minimum population requirement
+    let hasMinPopulation = true;
+    if (template.requirements?.minPopulation) {
+      const currentPopulation = buildings.reduce((sum, b) => {
+        if (b.type === 'residential') {
+          return sum + (b.properties.units || 0) * 2.3;
+        }
+        return sum;
+      }, 0);
+      hasMinPopulation = currentPopulation >= template.requirements.minPopulation;
+    }
+    
+    return !hasOverlap && hasRoadAccess && hasMinPopulation;
+  }, [buildings, roads]);
 
   return (
     <group>
@@ -1485,6 +1734,7 @@ function InteractiveCityScene() {
         showServiceRadius={showServiceRadius}
         setShowServiceRadius={setShowServiceRadius}
         onExport={handleExport}
+        roadPoints={roadPoints}
       />
     </group>
   );
@@ -1528,8 +1778,9 @@ export default function CityEngine3DInteractive() {
             color="#87ceeb"
           />
           
-          {/* HDR Environment */}
-          <Environment preset="city" />
+          {/* Basic Environment without HDR - prevents external file loading errors */}
+          <color args={['#87ceeb']} attach="background" />
+          <fog attach="fog" args={['#87ceeb', 20, 200]} />
           
           {/* Interactive City Scene */}
           <InteractiveCityScene />

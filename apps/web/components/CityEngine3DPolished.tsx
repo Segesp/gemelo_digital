@@ -29,8 +29,8 @@ export default function CityEngine3DInteractivePolished() {
           <AdvancedLighting />
           
           {/* Dynamic environment */}
-          <DynamicSkybox />
-          <WeatherEffects />
+          <DynamicSkybox weather="clear" />
+          <WeatherEffects weather="clear" />
           
           {/* Camera controls with enhanced settings */}
           <CameraSystem />

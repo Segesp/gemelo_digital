@@ -1438,7 +1438,8 @@ function InteractiveCityScene() {
   // Initialize professional tools
   useEffect(() => {
     roadBuilder.current = new ProfessionalRoadBuilder(scene, camera, gl);
-    measurementTools.current = new ProfessionalMeasurementTools(scene, camera);
+  // Ajuste: el constructor de ProfessionalMeasurementTools solo recibe la escena
+  measurementTools.current = new ProfessionalMeasurementTools(scene);
   }, [scene, camera, gl]);
 
   // Mouse interaction handling

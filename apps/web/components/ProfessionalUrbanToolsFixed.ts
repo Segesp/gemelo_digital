@@ -395,8 +395,62 @@ export class ProfessionalMeasurementTools {
 
 // Professional export tools
 export class ProfessionalExportTools {
+  // Instancia: exportación básica a JSON
   exportToJSON(data: any): string {
     return JSON.stringify(data, null, 2);
+  }
+
+  // Métodos estáticos para uso directo sin instanciar (coinciden con llamadas existentes)
+  static exportToProfessionalJSON(data: any, filename?: string): string {
+    const json = JSON.stringify({
+      generatedAt: new Date().toISOString(),
+      version: 1,
+      ...data
+    }, null, 2);
+    if (typeof window !== 'undefined' && filename) {
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    return json;
+  }
+
+  static exportToCAD(buildings: any[], roads: any[], filename?: string): string {
+    let dxf = '0\nSECTION\n2\nENTITIES\n';
+    buildings.forEach(b => {
+      dxf += `0\nINSERT\n8\nBUILDINGS\n10\n${b.position[0]}\n20\n${b.position[2]}\n`; });
+    roads.forEach(r => {
+      r.points.forEach((p: any) => { dxf += `0\nPOINT\n8\nROADS\n10\n${p[0]}\n20\n${p[2]}\n`; });
+    });
+    dxf += '0\nENDSEC\n0\nEOF\n';
+    if (typeof window !== 'undefined' && filename) {
+      const blob = new Blob([dxf], { type: 'application/dxf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    return dxf;
+  }
+
+  static generateProfessionalReport(cityData: any, filename?: string): string {
+    const report = `# Urban Planning Professional Report\n\nGenerated: ${new Date().toLocaleString()}\n\n## Summary\n- Buildings: ${cityData.buildings?.length || 0}\n- Roads: ${cityData.roads?.length || 0}\n- Measurements: ${cityData.measurements?.length || 0}\n\n## Buildings Detail\n${(cityData.buildings||[]).map((b:any)=>`- ${b.properties?.buildingName || b.id} (${b.type}) h=${b.height}m floors=${b.properties?.floors}`).join('\n')}\n`;
+    if (typeof window !== 'undefined' && filename) {
+      const blob = new Blob([report], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    return report;
   }
   
   exportToDXF(buildings: any[], roads: any[]): string {

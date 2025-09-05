@@ -1,6 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Suspense, lazy } from 'react';
 import maplibregl, { Map } from 'maplibre-gl';
+
+// Lazy load 3D components for better performance
+const Scene3D = lazy(() => import('../components/Scene3D'));
+const Analysis3D = lazy(() => import('../components/Analysis3D'));
+const DeckGL3D = lazy(() => import('../components/DeckGL3D'));
+const Temporal3D = lazy(() => import('../components/Temporal3D'));
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
@@ -29,6 +35,8 @@ interface SpatialStats {
   std_value: number;
 }
 
+type ViewMode = '2d' | '3d-scene' | '3d-analysis' | '3d-geospatial' | '3d-temporal';
+
 export default function Home() {
   const mapRef = useRef<Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -40,9 +48,12 @@ export default function Home() {
   const [nasaData, setNasaData] = useState<NASADataPoint[]>([]);
   const [spatialStats, setSpatialStats] = useState<SpatialStats | null>(null);
   const [showNASALayer, setShowNASALayer] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('2d');
+  const [selectedDataPoint, setSelectedDataPoint] = useState<NASADataPoint | null>(null);
 
+  // Initialize 2D map only when in 2D mode
   useEffect(() => {
-    if (containerRef.current && !mapRef.current) {
+    if (viewMode === '2d' && containerRef.current && !mapRef.current) {
       const m = new maplibregl.Map({
         container: containerRef.current,
         style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
@@ -51,9 +62,20 @@ export default function Home() {
       });
       mapRef.current = m;
       m.on('load', () => setReady(true));
+    } else if (viewMode !== '2d' && mapRef.current) {
+      // Clean up 2D map when switching to 3D
+      mapRef.current.remove();
+      mapRef.current = null;
+      setReady(false);
     }
-    return () => mapRef.current?.remove();
-  }, []);
+    
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [viewMode]);
 
   // Load puerto layer
   useEffect(() => {
@@ -84,9 +106,8 @@ export default function Home() {
     return () => clearInterval(id);
   }, [ready]);
 
-  // Load NASA datasets
+  // Load NASA datasets (works for all view modes)
   useEffect(() => {
-    if (!ready) return;
     fetch(`${API}/nasa/datasets`)
       .then(r => r.json())
       .then(datasets => {
@@ -97,7 +118,7 @@ export default function Home() {
         }
       })
       .catch(console.error);
-  }, [ready]);
+  }, []);
 
   // Load NASA data when dataset/parameter changes
   useEffect(() => {
@@ -116,9 +137,9 @@ export default function Home() {
       .catch(console.error);
   }, [selectedDataset, selectedParameter]);
 
-  // Update NASA layer on map
+  // Update NASA layer on 2D map only
   useEffect(() => {
-    if (!ready || !mapRef.current || !showNASALayer || nasaData.length === 0) return;
+    if (!ready || !mapRef.current || viewMode !== '2d' || !showNASALayer || nasaData.length === 0) return;
     
     const map = mapRef.current;
     
@@ -129,7 +150,7 @@ export default function Home() {
     }
 
     // Create GeoJSON from NASA data
-    const geojson = {
+    const geojson: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: nasaData.map(point => ({
         type: 'Feature',
@@ -201,19 +222,152 @@ export default function Home() {
       map.getCanvas().style.cursor = '';
     });
 
-  }, [ready, showNASALayer, nasaData, selectedDataset, selectedParameter]);
+  }, [ready, showNASALayer, nasaData, selectedDataset, selectedParameter, viewMode]);
 
   const uniqueDatasets = Array.from(new Set(nasaDatasets.map(d => d.dataset)));
   const parametersForDataset = nasaDatasets.filter(d => d.dataset === selectedDataset);
 
+  const handleDataPointSelect = (point: any) => {
+    setSelectedDataPoint(point);
+  };
+
+  const renderViewModeContent = () => {
+    switch (viewMode) {
+      case '2d':
+        return <div ref={containerRef} style={{flex:1}} />;
+      
+      case '3d-scene':
+        return (
+          <Suspense fallback={<div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a1a', color:'white'}}>Cargando vista 3D...</div>}>
+            <Scene3D 
+              data={nasaData} 
+              parameter={selectedParameter} 
+              dataset={selectedDataset} 
+            />
+          </Suspense>
+        );
+      
+      case '3d-analysis':
+        return (
+          <Suspense fallback={<div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a1a', color:'white'}}>Cargando análisis 3D...</div>}>
+            <Analysis3D 
+              data={nasaData} 
+              parameter={selectedParameter}
+              onPointSelect={handleDataPointSelect}
+            />
+          </Suspense>
+        );
+      
+      case '3d-geospatial':
+        return (
+          <Suspense fallback={<div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a1a', color:'white'}}>Cargando vista geoespacial 3D...</div>}>
+            <DeckGL3D 
+              data={nasaData} 
+              parameter={selectedParameter}
+              dataset={selectedDataset}
+            />
+          </Suspense>
+        );
+      
+      case '3d-temporal':
+        return (
+          <Suspense fallback={<div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a1a', color:'white'}}>Cargando análisis temporal 3D...</div>}>
+            <Temporal3D 
+              data={nasaData} 
+              parameter={selectedParameter}
+              dataset={selectedDataset}
+            />
+          </Suspense>
+        );
+      
+      default:
+        return <div ref={containerRef} style={{flex:1}} />;
+    }
+  };
+
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100vh'}}>
-      {/* Header */}
+      {/* Header with View Mode Selection */}
       <div style={{padding:'12px',borderBottom:'1px solid #eee',backgroundColor:'#f8fafc'}}>
         <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}}>
           <strong style={{fontSize:'18px',color:'#1e293b'}}>🛰️ Gemelo Digital Chancay</strong>
           <span style={{color:'#64748b'}}>Datos NASA + IoT + Análisis Espacial</span>
-          <span style={{marginLeft:'auto',color:'#059669',fontWeight:'500'}}>
+          
+          {/* View Mode Selector */}
+          <div style={{display:'flex',gap:8,marginLeft:'auto'}}>
+            <button 
+              onClick={() => setViewMode('2d')}
+              style={{
+                padding:'6px 12px',
+                border:'1px solid #d1d5db',
+                borderRadius:'4px',
+                background: viewMode === '2d' ? '#3b82f6' : '#ffffff',
+                color: viewMode === '2d' ? 'white' : '#374151',
+                fontSize:'12px',
+                cursor:'pointer'
+              }}
+            >
+              🗺️ Vista 2D
+            </button>
+            <button 
+              onClick={() => setViewMode('3d-scene')}
+              style={{
+                padding:'6px 12px',
+                border:'1px solid #d1d5db',
+                borderRadius:'4px',
+                background: viewMode === '3d-scene' ? '#3b82f6' : '#ffffff',
+                color: viewMode === '3d-scene' ? 'white' : '#374151',
+                fontSize:'12px',
+                cursor:'pointer'
+              }}
+            >
+              🏗️ Escena 3D
+            </button>
+            <button 
+              onClick={() => setViewMode('3d-analysis')}
+              style={{
+                padding:'6px 12px',
+                border:'1px solid #d1d5db',
+                borderRadius:'4px',
+                background: viewMode === '3d-analysis' ? '#3b82f6' : '#ffffff',
+                color: viewMode === '3d-analysis' ? 'white' : '#374151',
+                fontSize:'12px',
+                cursor:'pointer'
+              }}
+            >
+              📊 Análisis 3D
+            </button>
+            <button 
+              onClick={() => setViewMode('3d-geospatial')}
+              style={{
+                padding:'6px 12px',
+                border:'1px solid #d1d5db',
+                borderRadius:'4px',
+                background: viewMode === '3d-geospatial' ? '#3b82f6' : '#ffffff',
+                color: viewMode === '3d-geospatial' ? 'white' : '#374151',
+                fontSize:'12px',
+                cursor:'pointer'
+              }}
+            >
+              🌍 Geoespacial 3D
+            </button>
+            <button 
+              onClick={() => setViewMode('3d-temporal')}
+              style={{
+                padding:'6px 12px',
+                border:'1px solid #d1d5db',
+                borderRadius:'4px',
+                background: viewMode === '3d-temporal' ? '#3b82f6' : '#ffffff',
+                color: viewMode === '3d-temporal' ? 'white' : '#374151',
+                fontSize:'12px',
+                cursor:'pointer'
+              }}
+            >
+              ⏰ Temporal 3D
+            </button>
+          </div>
+          
+          <span style={{color:'#059669',fontWeight:'500'}}>
             Temp puerto: {temp ?? '...' } °C
           </span>
         </div>
@@ -250,19 +404,31 @@ export default function Home() {
             </select>
           </div>
 
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <input 
-              type="checkbox"
-              checked={showNASALayer}
-              onChange={(e) => setShowNASALayer(e.target.checked)}
-              id="nasa-layer"
-            />
-            <label htmlFor="nasa-layer" style={{fontWeight:'500',color:'#374151'}}>
-              Mostrar datos NASA en mapa
-            </label>
-          </div>
+          {viewMode === '2d' && (
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <input 
+                type="checkbox"
+                checked={showNASALayer}
+                onChange={(e) => setShowNASALayer(e.target.checked)}
+                id="nasa-layer"
+              />
+              <label htmlFor="nasa-layer" style={{fontWeight:'500',color:'#374151'}}>
+                Mostrar datos NASA en mapa 2D
+              </label>
+            </div>
+          )}
 
-          {spatialStats && (
+          {selectedDataPoint && (
+            <div style={{marginLeft:'auto',padding:'8px 12px',backgroundColor:'#f0f9ff',borderRadius:'4px',border:'1px solid #bae6fd'}}>
+              <strong style={{color:'#0284c7'}}>Punto seleccionado:</strong>
+              <span style={{marginLeft:8,color:'#0369a1'}}>
+                Valor: {selectedDataPoint.value?.toFixed(2)} | 
+                Tiempo: {new Date(selectedDataPoint.timestamp).toLocaleTimeString()}
+              </span>
+            </div>
+          )}
+
+          {spatialStats && !selectedDataPoint && (
             <div style={{marginLeft:'auto',padding:'8px 12px',backgroundColor:'#f0f9ff',borderRadius:'4px',border:'1px solid #bae6fd'}}>
               <strong style={{color:'#0284c7'}}>Análisis Espacial (24h):</strong>
               <span style={{marginLeft:8,color:'#0369a1'}}>
@@ -276,14 +442,20 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Map */}
-      <div ref={containerRef} style={{flex:1}} />
+      {/* Main Content Area */}
+      {renderViewModeContent()}
 
       {/* Footer Info */}
       <div style={{padding:'8px 12px',borderTop:'1px solid #eee',backgroundColor:'#f8fafc',fontSize:'12px',color:'#64748b'}}>
         <div style={{display:'flex',justifyContent:'space-between'}}>
           <span>📡 Datos en tiempo real de NASA POWER API, MODIS, VIIRS y sensores locales</span>
-          <span>🔄 Actualización automática cada hora</span>
+          <span>🔄 Actualización automática cada hora | Vista: {
+            viewMode === '2d' ? '2D MapLibre' :
+            viewMode === '3d-scene' ? '3D Three.js' :
+            viewMode === '3d-analysis' ? '3D Análisis Interactivo' :
+            viewMode === '3d-geospatial' ? '3D Geoespacial deck.gl' :
+            '3D Temporal'
+          }</span>
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+// @ts-nocheck - TypeScript version conflict between three.js packages
 "use client";
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, Line } from '@react-three/drei';

@@ -227,7 +227,9 @@ export function ViewModeSelector({
     { id: '3d-scene', label: '🏗️ Escena 3D', description: 'Modelo 3D del puerto' },
     { id: '3d-analysis', label: '📊 Análisis 3D', description: 'Herramientas interactivas' },
     { id: '3d-geospatial', label: '🌍 Geoespacial 3D', description: 'Visualización deck.gl' },
-    { id: '3d-temporal', label: '⏰ Temporal 3D', description: 'Análisis temporal inmersivo' }
+    { id: '3d-temporal', label: '⏰ Temporal 3D', description: 'Análisis temporal inmersivo' },
+    { id: 'city-engine', label: '🏙️ City Engine', description: 'Planificación urbana procedural' },
+    { id: 'digital-twin', label: '🤖 Gemelo Digital IA', description: 'Constructor avanzado con IA, IoT y simulación' }
   ];
 
   return (
@@ -274,6 +276,8 @@ export function DashboardFooter({ viewMode, dataCount }: { viewMode: string, dat
       case '3d-analysis': return '3D Análisis Interactivo';
       case '3d-geospatial': return '3D Geoespacial deck.gl';
       case '3d-temporal': return '3D Temporal';
+      case 'city-engine': return '3D City Engine - Planificación Urbana';
+      case 'digital-twin': return '3D Gemelo Digital IA - Constructor Avanzado';
       default: return 'Desconocido';
     }
   };

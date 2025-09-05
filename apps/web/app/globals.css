@@ -33,6 +33,14 @@ body {
   animation: pulse 2s ease-in-out infinite;
 }
 
+.loading-details {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 8px;
+  animation: pulse 2s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
 .spinner {
   animation: spin 1s linear infinite;
 }

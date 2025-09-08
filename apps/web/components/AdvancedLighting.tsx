@@ -67,9 +67,10 @@ export function AdvancedLighting() {
 export function DynamicSkybox({ weather }) {
   return (
     <Environment
-      preset="city"
+      background
+      preset="sunset"
       backgroundIntensity={0.5}
-      environmentIntensity={0.8}
+      environmentIntensity={0.6}
     />
   );
 }

@@ -219,15 +219,30 @@ export default function Home() {
   // Load NASA datasets
   useEffect(() => {
     fetch(`${API}/nasa/datasets`)
-      .then(r => r.json())
+      .then(async (r) => {
+        if (!r.ok) {
+          console.warn(`NASA API returned ${r.status}: ${r.statusText}`);
+          return [];
+        }
+        
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch (error) {
+          console.warn('NASA API returned invalid JSON:', text.substring(0, 100));
+          return [];
+        }
+      })
       .then(datasets => {
-        setNasaDatasets(datasets);
-        if (datasets.length > 0) {
+        if (Array.isArray(datasets) && datasets.length > 0) {
+          setNasaDatasets(datasets);
           setSelectedDataset(datasets[0].dataset);
           setSelectedParameter(datasets[0].parameter);
         }
       })
-      .catch(console.error);
+      .catch(error => {
+        console.warn('Failed to load NASA datasets:', error);
+      });
   }, []);
 
   // Load NASA data when dataset/parameter changes
@@ -236,15 +251,47 @@ export default function Home() {
     
     // Load data points
     fetch(`${API}/nasa/data/${selectedDataset}/${selectedParameter}?limit=100&hours_back=24`)
-      .then(r => r.json())
+      .then(async (r) => {
+        if (!r.ok) {
+          console.warn(`NASA data API returned ${r.status}: ${r.statusText}`);
+          return { data: [] };
+        }
+        
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch (error) {
+          console.warn('NASA data API returned invalid JSON:', text.substring(0, 100));
+          return { data: [] };
+        }
+      })
       .then(response => setNasaData(response.data || []))
-      .catch(console.error);
+      .catch(error => {
+        console.warn('Failed to load NASA data:', error);
+        setNasaData([]);
+      });
 
     // Load spatial statistics
     fetch(`${API}/nasa/analysis/spatial-average/${selectedDataset}/${selectedParameter}?hours_back=24`)
-      .then(r => r.json())
+      .then(async (r) => {
+        if (!r.ok) {
+          console.warn(`NASA analysis API returned ${r.status}: ${r.statusText}`);
+          return { spatial_stats: null };
+        }
+        
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch (error) {
+          console.warn('NASA analysis API returned invalid JSON:', text.substring(0, 100));
+          return { spatial_stats: null };
+        }
+      })
       .then(response => setSpatialStats(response.spatial_stats))
-      .catch(console.error);
+      .catch(error => {
+        console.warn('Failed to load NASA spatial stats:', error);
+        setSpatialStats(null);
+      });
   }, [selectedDataset, selectedParameter]);
 
   // Update NASA layer on 2D map only

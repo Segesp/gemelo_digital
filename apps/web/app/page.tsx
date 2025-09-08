@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState, Suspense, lazy } from 'react';
 import maplibregl, { Map } from 'maplibre-gl';
 import { DashboardHeader, DashboardControls, ViewModeSelector, DashboardFooter } from '../components/Dashboard';
+import { ModernToolbar } from '../components/ModernUI';
+import { useCityEngineStore, useBuildings } from '../utils/cityEngineStore';
 
 // Lazy load 3D components for better performance
 const Scene3D = lazy(() => import('../components/Scene3D'));
@@ -11,7 +13,7 @@ const Temporal3D = lazy(() => import('../components/Temporal3D'));
 const CityEngine3D = lazy(() => import('../components/CityEngine3DPolished'));
 // const InnovativeDigitalTwin = lazy(() => import('../components/InnovativeDigitalTwin')); // Desactivado temporalmente para build
 
-const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+const API = process.env.NEXT_PUBLIC_API_BASE || '/api';
 
 interface NASADataset {
   dataset: string;
@@ -53,6 +55,26 @@ export default function Home() {
   const [showNASALayer, setShowNASALayer] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('2d');
   const [selectedDataPoint, setSelectedDataPoint] = useState<NASADataPoint | null>(null);
+  // City Engine store hooks
+  const addBuilding = useCityEngineStore(s => s.addBuilding);
+  const addRoad = useCityEngineStore(s => s.addRoad);
+  const selectedTool = useCityEngineStore(s => s.selectedTool);
+  const ceBuildings = useBuildings();
+  const [roadDraft, setRoadDraft] = useState<Array<[number, number]>>([]);
+
+  // Helpers para convertir coordenadas
+  const centerLat = -11.57;
+  const centerLng = -77.27;
+  const to3D = (lat: number, lng: number): [number, number, number] => {
+    const x = (lng - centerLng) * 111320 * Math.cos(centerLat * Math.PI / 180) / 500;
+    const z = (lat - centerLat) * 110540 / 500;
+    return [x, 0, z];
+  };
+  const toLL = (x: number, z: number): [number, number] => {
+    const lng = x * 500 / (111320 * Math.cos(centerLat * Math.PI / 180)) + centerLng;
+    const lat = z * 500 / 110540 + centerLat;
+    return [lat, lng];
+  };
 
   // Initialize 2D map only when in 2D mode
   useEffect(() => {
@@ -86,6 +108,76 @@ export default function Home() {
       }
     };
   }, [viewMode]);
+
+  // Interacciones de edición 2D -> sincroniza con 3D
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const m = mapRef.current;
+    const handleClick = (e: any) => {
+      if (selectedTool === 'build') {
+        const { lng, lat } = e.lngLat;
+        const position = to3D(lat, lng);
+        const id = 'b_' + Date.now();
+        addBuilding({
+          id,
+          position,
+          width: 8,
+          depth: 10,
+          height: 6 + Math.random() * 12,
+          type: 'commercial',
+          color: '#8ab4f8',
+          rotation: 0,
+          properties: {
+            floors: 3,
+            buildingName: 'Edificio ' + id,
+            value: 100000,
+            yearBuilt: 2025,
+            condition: 100,
+            // @ts-ignore opcional extra
+            lat,
+            // @ts-ignore opcional extra
+            lng
+          },
+          economics: {
+            constructionCost: 50000,
+            maintenanceCost: 2000,
+            propertyTax: 500
+          },
+          environment: {
+            pollutionGenerated: 0,
+            noiseLevel: 0,
+            energyEfficiency: 80,
+            powerConsumption: 1,
+            waterConsumption: 1
+          }
+        } as any);
+      }
+      if (selectedTool === 'road') {
+        const { lng, lat } = e.lngLat;
+        const next = [...roadDraft, [lng, lat] as [number, number]];
+        if (next.length >= 2) {
+          const id = 'r_' + Date.now();
+          const pts3d: [number, number, number][] = next.map(([lng, lat]) => to3D(lat, lng));
+          addRoad({
+            id,
+            type: 'avenue',
+            points: pts3d,
+            width: 8,
+            color: '#404040',
+            capacity: 1000,
+            speedLimit: 50
+          } as any);
+          setRoadDraft([]);
+        } else {
+          setRoadDraft(next);
+        }
+      }
+    };
+    m.on('click', handleClick);
+    return () => {
+      m.off('click', handleClick);
+    };
+  }, [selectedTool, addBuilding]);
 
   // Load puerto layer
   useEffect(() => {
@@ -251,6 +343,70 @@ export default function Home() {
 
   }, [ready, showNASALayer, nasaData, selectedDataset, selectedParameter, viewMode]);
 
+  // Dibuja edificios del CityEngine en el mapa 2D
+  useEffect(() => {
+    if (!ready || !mapRef.current || viewMode !== '2d') return;
+    const map = mapRef.current;
+    const features = ceBuildings.map(b => {
+      // intentar leer lat/lng desde propiedades, si no, convertir desde posición
+      // @ts-ignore
+      const lat = b.properties?.lat ?? toLL(b.position[0], b.position[2])[0];
+      // @ts-ignore
+      const lng = b.properties?.lng ?? toLL(b.position[0], b.position[2])[1];
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [lng, lat] },
+        properties: { id: b.id, height: b.height }
+      } as GeoJSON.Feature;
+    });
+    const fc: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features };
+    const sourceId = 'ce-buildings';
+    const layerId = 'ce-buildings-pts';
+    if (map.getSource(sourceId)) {
+      (map.getSource(sourceId) as any).setData(fc);
+    } else {
+      map.addSource(sourceId, { type: 'geojson', data: fc });
+      map.addLayer({
+        id: layerId,
+        type: 'circle',
+        source: sourceId,
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['get', 'height'],
+            0, 4,
+            40, 10
+          ],
+          'circle-color': '#22c55e',
+          'circle-stroke-color': '#064e3b',
+          'circle-stroke-width': 1,
+          'circle-opacity': 0.8
+        }
+      });
+    }
+  }, [ceBuildings, ready, viewMode]);
+
+  // Dibuja borrador de carretera y carreteras confirmadas
+  useEffect(() => {
+    if (!ready || !mapRef.current || viewMode !== '2d') return;
+    const map = mapRef.current;
+    const draftSource = 'ce-road-draft';
+    const draftLayer = 'ce-road-draft-line';
+    const geo: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: roadDraft.length >= 2 ? [{
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: roadDraft },
+        properties: {}
+      } as any] : []
+    };
+    if (map.getSource(draftSource)) {
+      (map.getSource(draftSource) as any).setData(geo);
+    } else {
+      map.addSource(draftSource, { type: 'geojson', data: geo });
+      map.addLayer({ id: draftLayer, type: 'line', source: draftSource, paint: { 'line-color': '#22c55e', 'line-width': 3, 'line-dasharray': [1, 1] } });
+    }
+  }, [roadDraft, ready, viewMode]);
+
   const handleDataPointSelect = (point: any) => {
     setSelectedDataPoint(point);
   };
@@ -265,6 +421,12 @@ export default function Home() {
                 <div className="loading">Cargando mapa base...</div>
               </div>
             )}
+            {/* Toolbar unificada para edición 2D */}
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              <div style={{ pointerEvents: 'auto' }}>
+                <ModernToolbar />
+              </div>
+            </div>
           </div>
         );
       

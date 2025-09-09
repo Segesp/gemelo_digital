@@ -1,6 +1,7 @@
 // @ts-nocheck - TypeScript version conflict between three.js packages
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { useRef, useMemo, useEffect, useState } from 'react';
 import { BuildingData } from '../utils/cityEngineStore';
 
@@ -358,23 +359,27 @@ export function PerformanceMonitor() {
   });
   
   return (
-    <div className="performance-monitor" style={{
-      position: 'absolute',
-      top: 10,
-      right: 10,
-      background: 'rgba(0,0,0,0.8)',
-      color: 'white',
-      padding: 10,
-      borderRadius: 5,
-      fontFamily: 'monospace',
-      fontSize: 12,
-      zIndex: 1000
-    }}>
+    <Html
+      position={[0, 0, 0]}
+      style={{
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        background: 'rgba(0,0,0,0.8)',
+        color: 'white',
+        padding: 10,
+        borderRadius: 5,
+        fontFamily: 'monospace',
+        fontSize: 12,
+        zIndex: 1000,
+        pointerEvents: 'none'
+      }}
+    >
       <div>FPS: {stats.fps}</div>
       <div>Memory: {stats.memory.toFixed(1)}MB</div>
       <div>Draw Calls: {stats.drawCalls}</div>
       <div>Triangles: {stats.triangles}</div>
-    </div>
+    </Html>
   );
 }
 
@@ -428,7 +433,7 @@ function TreeInstance({ position, scale, species }: {
     // Implementation would merge the geometries
     
     return trunkGeometry; // Simplified for now
-  }, [scale, species]);
+  }, [scale]);
   
   return (
     <mesh

@@ -60,7 +60,8 @@ services:
     build: ./apps/web
     container_name: gd_web
     environment:
-      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+      - NEXT_PUBLIC_API_BASE=/api
+      - API_INTERNAL_BASE=http://api:8000
     depends_on:
       api:
         condition: service_started

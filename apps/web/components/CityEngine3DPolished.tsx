@@ -43,12 +43,13 @@ export default function CityEngine3DInteractivePolished() {
           <AdvancedPostProcessing />
           
           {/* Performance monitoring */}
-          <Stats />
+      <Stats />
+      <PerformanceMonitor />
         </Suspense>
       </Canvas>
       
       {/* Modern UI overlay */}
-      <UIOverlay />
+    <UIOverlay />
     </div>
   );
 }
@@ -293,10 +294,8 @@ function LoadingIndicator() {
 function UIOverlay() {
   return (
     <>
-      <ModernToolbar />
-      <CityMetricsDashboard />
-      <BuildingPalette />
-      <PerformanceMonitor />
+  {/* UI 3D reducida: edición se centraliza en 2D */}
+  <CityMetricsDashboard />
       <KeyboardShortcuts />
     </>
   );

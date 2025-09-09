@@ -382,7 +382,7 @@ function Professional3DBuilding({
         metalness: 0.1
       })
     };
-  }, [building.color, isSelected, isHovered]);
+  }, [building.color, building.type, isSelected, isHovered]);
 
   const handleClick = useCallback((event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
@@ -1555,7 +1555,7 @@ function InteractiveCityScene() {
       };
       setVegetation(prev => [...prev, newVegetation]);
     }
-  }, [mode, selectedTemplate, roadPoints, measurements]);
+  }, [mode, selectedTemplate, roadPoints]);
 
   const handleBuildingClick = useCallback((building: BuildingData) => {
     if (mode.mode === 'select') {
@@ -1606,7 +1606,6 @@ function InteractiveCityScene() {
 
   // Enhanced terrain modification handler
   const handleTerrainModify = useCallback((position: [number, number, number], operation: string, radius: number) => {
-    console.log(`🏔️ Terrain modification: ${operation} at [${position[0].toFixed(1)}, ${position[1].toFixed(1)}, ${position[2].toFixed(1)}] with radius ${radius}m`);
     // The actual terrain modification is handled directly in the TerrainEditor component
     // This callback is for additional processing or validation if needed
   }, []);

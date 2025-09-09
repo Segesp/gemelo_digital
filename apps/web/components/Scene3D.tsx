@@ -1,7 +1,7 @@
 // @ts-nocheck - TypeScript version conflict between three.js packages
 "use client";
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Environment, Grid, Text, Html } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Grid, Text, Html } from '@react-three/drei';
 import { Suspense, useRef, useMemo, useState } from 'react';
 import * as THREE from 'three';
 
@@ -302,7 +302,8 @@ function Scene3DContent({ data, parameter, dataset }: Scene3DProps) {
         enableDamping
       />
       
-      <Environment preset="dawn" />
+      {/* Simple background color instead of HDR environment */}
+      <color attach="background" args={['#87CEEB']} />
       
       {/* Improved lighting setup */}
       <ambientLight intensity={0.3} />

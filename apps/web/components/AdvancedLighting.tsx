@@ -2,7 +2,6 @@
 "use client";
 import { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Environment } from '@react-three/drei';
 
 // Simplified Advanced Lighting System
 export function AdvancedLighting() {
@@ -65,13 +64,13 @@ export function AdvancedLighting() {
 
 // Dynamic Skybox Component
 export function DynamicSkybox({ weather }) {
+  // Simple color background instead of HDR environment
+  const backgroundColor = weather === 'clear' ? '#87CEEB' : 
+                          weather === 'cloudy' ? '#B0C4DE' :
+                          weather === 'rain' ? '#778899' : '#87CEEB';
+  
   return (
-    <Environment
-      background
-      preset="sunset"
-      backgroundIntensity={0.5}
-      environmentIntensity={0.6}
-    />
+    <color attach="background" args={[backgroundColor]} />
   );
 }
 

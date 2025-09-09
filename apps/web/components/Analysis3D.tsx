@@ -1,7 +1,7 @@
 // @ts-nocheck - TypeScript version conflict between three.js packages
 "use client";
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Html, Line, Sphere, Text, OrbitControls, Environment, Grid } from '@react-three/drei';
+import { Html, Line, Sphere, Text, OrbitControls, Grid } from '@react-three/drei';
 import { useMemo, useRef, useState, Suspense } from 'react';
 import * as THREE from 'three';
 
@@ -245,7 +245,8 @@ function Analysis3DContent({ data, parameter, onPointSelect }: Analysis3DProps) 
         enableDamping
       />
       
-      <Environment preset="dawn" />
+      {/* Simple background instead of HDR environment */}
+      <color attach="background" args={['#f0f8ff']} />
       
       <ambientLight intensity={0.4} />
       <directionalLight

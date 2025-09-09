@@ -1606,7 +1606,6 @@ function InteractiveCityScene() {
 
   // Enhanced terrain modification handler
   const handleTerrainModify = useCallback((position: [number, number, number], operation: string, radius: number) => {
-    console.log(`🏔️ Terrain modification: ${operation} at [${position[0].toFixed(1)}, ${position[1].toFixed(1)}, ${position[2].toFixed(1)}] with radius ${radius}m`);
     // The actual terrain modification is handled directly in the TerrainEditor component
     // This callback is for additional processing or validation if needed
   }, []);

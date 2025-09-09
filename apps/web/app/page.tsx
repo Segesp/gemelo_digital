@@ -6,12 +6,7 @@ import { ModernToolbar } from '../components/ModernUI';
 import { useCityEngineStore, useBuildings } from '../utils/cityEngineStore';
 
 // Lazy load 3D components for better performance
-const Scene3D = lazy(() => import('../components/Scene3D'));
-const Analysis3D = lazy(() => import('../components/Analysis3D'));
-const DeckGL3D = lazy(() => import('../components/DeckGL3D'));
-const Temporal3D = lazy(() => import('../components/Temporal3D'));
-const CityEngine3D = lazy(() => import('../components/CityEngine3DPolished'));
-// const InnovativeDigitalTwin = lazy(() => import('../components/InnovativeDigitalTwin')); // Desactivado temporalmente para build
+const Unified3D = lazy(() => import('../components/Unified3D'));
 
 const API = process.env.NEXT_PUBLIC_API_BASE || '/api';
 
@@ -40,7 +35,7 @@ interface SpatialStats {
   std_value: number;
 }
 
-type ViewMode = '2d' | '3d-scene' | '3d-analysis' | '3d-geospatial' | '3d-temporal' | 'city-engine'; // removido 'digital-twin' temporalmente
+type ViewMode = '2d' | '3d';
 
 export default function Home() {
   const mapRef = useRef<Map | null>(null);
@@ -477,101 +472,22 @@ export default function Home() {
           </div>
         );
       
-      case '3d-scene':
+      case '3d':
         return (
-          <div className="flex-1">
-            <Suspense fallback={
-              <div className="loading-overlay">
-                <div className="loading">🏗️ Cargando vista 3D del puerto...</div>
-              </div>
-            }>
-              <Scene3D 
-                data={nasaData} 
-                parameter={selectedParameter} 
-                dataset={selectedDataset} 
-              />
-            </Suspense>
-          </div>
+          <Suspense fallback={
+            <div className="loading-overlay">
+              <div className="loading">🌍 Cargando entorno 3D unificado...</div>
+              <div className="loading-details">Inicializando herramientas de visualización y análisis</div>
+            </div>
+          }>
+            <Unified3D 
+              data={nasaData} 
+              parameter={selectedParameter} 
+              dataset={selectedDataset}
+              onPointSelect={handleDataPointSelect}
+            />
+          </Suspense>
         );
-      
-      case '3d-analysis':
-        return (
-          <div className="flex-1">
-            <Suspense fallback={
-              <div className="loading-overlay">
-                <div className="loading">📊 Cargando herramientas de análisis...</div>
-              </div>
-            }>
-              <Analysis3D 
-                data={nasaData} 
-                parameter={selectedParameter}
-                onPointSelect={handleDataPointSelect}
-              />
-            </Suspense>
-          </div>
-        );
-      
-      case '3d-geospatial':
-        return (
-          <div className="flex-1">
-            <Suspense fallback={
-              <div className="loading-overlay">
-                <div className="loading">🌍 Cargando visualización geoespacial...</div>
-              </div>
-            }>
-              <DeckGL3D 
-                data={nasaData} 
-                parameter={selectedParameter}
-                dataset={selectedDataset}
-              />
-            </Suspense>
-          </div>
-        );
-      
-      case '3d-temporal':
-        return (
-          <div className="flex-1">
-            <Suspense fallback={
-              <div className="loading-overlay">
-                <div className="loading">⏰ Cargando análisis temporal...</div>
-              </div>
-            }>
-              <Temporal3D 
-                data={nasaData} 
-                parameter={selectedParameter}
-                dataset={selectedDataset}
-              />
-            </Suspense>
-          </div>
-        );
-      
-      case 'city-engine':
-        return (
-          <div className="flex-1">
-            <Suspense fallback={
-              <div className="loading-overlay">
-                <div className="loading">🚀 Cargando City Engine Profesional Avanzado...</div>
-                <div className="loading-details">Inicializando tecnologías de planificación urbana de última generación</div>
-              </div>
-            }>
-              <CityEngine3D />
-            </Suspense>
-          </div>
-        );
-      
-  // case 'digital-twin':
-  //   return (
-  //     <div className="flex-1">
-  //       <Suspense fallback={
-  //         <div className="loading-overlay">
-  //           <div className="loading">🏗️ Cargando Gemelo Digital Innovador...</div>
-  //           <div className="loading-details">Inicializando IA, IoT, Simulación y Tecnologías Avanzadas</div>
-  //         </div>
-  //       }>
-  //         <InnovativeDigitalTwin />
-  //       </Suspense>
-  //     </div>
-  //   );
       
       default:
         return <div ref={containerRef} className="flex-1" />;

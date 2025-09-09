@@ -223,13 +223,8 @@ export function ViewModeSelector({
   onViewModeChange: (mode: string) => void 
 }) {
   const viewModes = [
-    { id: '2d', label: '🗺️ Vista 2D', description: 'Mapa tradicional MapLibre' },
-    { id: '3d-scene', label: '🏗️ Escena 3D', description: 'Modelo 3D del puerto' },
-    { id: '3d-analysis', label: '📊 Análisis 3D', description: 'Herramientas interactivas' },
-    { id: '3d-geospatial', label: '🌍 Geoespacial 3D', description: 'Visualización deck.gl' },
-    { id: '3d-temporal', label: '⏰ Temporal 3D', description: 'Análisis temporal inmersivo' },
-    { id: 'city-engine', label: '🏙️ City Engine', description: 'Planificación urbana procedural' },
-    { id: 'digital-twin', label: '🤖 Gemelo Digital IA', description: 'Constructor avanzado con IA, IoT y simulación' }
+    { id: '2d', label: '🗺️ Vista 2D', description: 'Mapa tradicional con herramientas de edición' },
+    { id: '3d', label: '🌍 Vista 3D', description: 'Entorno 3D unificado con todas las herramientas' }
   ];
 
   return (
@@ -271,13 +266,8 @@ export function ViewModeSelector({
 export function DashboardFooter({ viewMode, dataCount }: { viewMode: string, dataCount: number }) {
   const getViewModeDescription = (mode: string) => {
     switch(mode) {
-      case '2d': return '2D MapLibre GL';
-      case '3d-scene': return '3D Three.js + React Three Fiber';
-      case '3d-analysis': return '3D Análisis Interactivo';
-      case '3d-geospatial': return '3D Geoespacial deck.gl';
-      case '3d-temporal': return '3D Temporal';
-      case 'city-engine': return '3D City Engine - Planificación Urbana';
-      case 'digital-twin': return '3D Gemelo Digital IA - Constructor Avanzado';
+      case '2d': return '2D MapLibre GL + Herramientas de Edición';
+      case '3d': return '3D Entorno Unificado (Three.js + React Three Fiber + deck.gl)';
       default: return 'Desconocido';
     }
   };

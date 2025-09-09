@@ -61,7 +61,15 @@ const tools: Tool[] = [
   { id: 'attributes', name: 'Atributos', icon: '📑', category: 'view', tooltip: 'Tabla de atributos' },
   { id: 'bookmarks', name: 'Marcadores', icon: '🔖', category: 'view', tooltip: 'Marcadores espaciales' },
   { id: 'legend', name: 'Leyenda', icon: '🏷️', category: 'view', tooltip: 'Leyenda del mapa' },
-  { id: 'overview', name: 'Vista General', icon: '🗺️', category: 'view', tooltip: 'Mapa de vista general' }
+  { id: 'overview', name: 'Vista General', icon: '🗺️', category: 'view', tooltip: 'Mapa de vista general' },
+  
+  // Lima 2025 NASA Tools
+  { id: 'urban-observatory', name: 'Observatorio Urbano', icon: '🛰️', category: 'view', tooltip: 'Observatorio Urbano de Lima - 20 años de datos NASA' },
+  { id: 'energy-monitoring', name: 'Monitoreo Energético', icon: '⚡', category: 'analysis', tooltip: 'Monitoreo de energía y servicios urbanos' },
+  { id: 'green-corridors', name: 'Corredores Verdes', icon: '🌳', category: 'insert', tooltip: 'Planificación de corredores verdes' },
+  { id: 'transport-system', name: 'Sistema Transporte', icon: '🚦', category: 'analysis', tooltip: 'Sistema inteligente de transporte' },
+  { id: 'early-warning', name: 'Alerta Temprana', icon: '🚨', category: 'analysis', tooltip: 'Sistema de alerta temprana' },
+  { id: 'city-reports', name: 'Reportes Ciudad', icon: '📊', category: 'view', tooltip: 'Generador de reportes de ciudad' }
 ];
 
 export function ArcGISProInterface({ 

@@ -7,6 +7,12 @@ import { ArcGISProInterface, LayerPanel } from '../components/ArcGISProInterface
 import { ContentPane } from '../components/ContentPane';
 import { StatusBar } from '../components/StatusBar';
 import { GISToolsManager } from '../components/gis/GISToolsManager';
+import LimaUrbanObservatory from '../components/observatory/LimaUrbanObservatory';
+import EnergyServicesMonitoring from '../components/monitoring/EnergyServicesMonitoring';
+import GreenCorridorsPlanning from '../components/planning/GreenCorridorsPlanning';
+import IntelligentTransportSystem from '../components/transport/IntelligentTransportSystem';
+import EarlyWarningSystem from '../components/warnings/EarlyWarningSystem';
+import CityReportsGenerator from '../components/reports/CityReportsGenerator';
 import { useCityEngineStore, useBuildings } from '../utils/cityEngineStore';
 
 // Lazy load 3D components for better performance
@@ -61,6 +67,14 @@ export default function Home() {
   const [activeContentPane, setActiveContentPane] = useState('contents');
   const [currentCoordinates, setCurrentCoordinates] = useState({ lat: -11.084, lng: -77.608 });
   const [mapScale, setMapScale] = useState(10000);
+  
+  // Lima 2025 NASA Tools state
+  const [showUrbanObservatory, setShowUrbanObservatory] = useState(false);
+  const [showEnergyMonitoring, setShowEnergyMonitoring] = useState(false);
+  const [showGreenCorridors, setShowGreenCorridors] = useState(false);
+  const [showTransportSystem, setShowTransportSystem] = useState(false);
+  const [showEarlyWarning, setShowEarlyWarning] = useState(false);
+  const [showCityReports, setShowCityReports] = useState(false);
   
   // City Engine store hooks
   const addBuilding = useCityEngineStore(s => s.addBuilding);
@@ -121,6 +135,25 @@ export default function Home() {
       case 'import-data':
       case 'export-data':
         useCityEngineStore.getState().setSelectedTool(toolId);
+        break;
+      // Lima 2025 NASA Tools
+      case 'urban-observatory':
+        setShowUrbanObservatory(true);
+        break;
+      case 'energy-monitoring':
+        setShowEnergyMonitoring(true);
+        break;
+      case 'green-corridors':
+        setShowGreenCorridors(true);
+        break;
+      case 'transport-system':
+        setShowTransportSystem(true);
+        break;
+      case 'early-warning':
+        setShowEarlyWarning(true);
+        break;
+      case 'city-reports':
+        setShowCityReports(true);
         break;
       default:
         // For other tools, use select as default
@@ -741,6 +774,37 @@ export default function Home() {
         totalFeatures={ceBuildings.length}
         systemStatus="operational"
         lastUpdate={new Date()}
+      />
+
+      {/* Lima 2025 NASA Tools */}
+      <LimaUrbanObservatory
+        isVisible={showUrbanObservatory}
+        onClose={() => setShowUrbanObservatory(false)}
+      />
+      
+      <EnergyServicesMonitoring
+        isVisible={showEnergyMonitoring}
+        onClose={() => setShowEnergyMonitoring(false)}
+      />
+      
+      <GreenCorridorsPlanning
+        isVisible={showGreenCorridors}
+        onClose={() => setShowGreenCorridors(false)}
+      />
+      
+      <IntelligentTransportSystem
+        isVisible={showTransportSystem}
+        onClose={() => setShowTransportSystem(false)}
+      />
+      
+      <EarlyWarningSystem
+        isVisible={showEarlyWarning}
+        onClose={() => setShowEarlyWarning(false)}
+      />
+      
+      <CityReportsGenerator
+        isVisible={showCityReports}
+        onClose={() => setShowCityReports(false)}
       />
     </div>
   );

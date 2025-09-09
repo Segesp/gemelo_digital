@@ -433,7 +433,7 @@ function TreeInstance({ position, scale, species }: {
     // Implementation would merge the geometries
     
     return trunkGeometry; // Simplified for now
-  }, [scale, species]);
+  }, [scale]);
   
   return (
     <mesh

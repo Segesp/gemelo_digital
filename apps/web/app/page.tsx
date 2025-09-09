@@ -1,8 +1,11 @@
 "use client";
-import { useEffect, useRef, useState, Suspense, lazy } from 'react';
+import { useEffect, useRef, useState, Suspense, lazy, useCallback } from 'react';
 import maplibregl, { Map } from 'maplibre-gl';
 import { DashboardHeader, DashboardControls, ViewModeSelector, DashboardFooter } from '../components/Dashboard';
 import { ModernToolbar } from '../components/ModernUI';
+import { ArcGISProInterface, LayerPanel } from '../components/ArcGISProInterface';
+import { ContentPane } from '../components/ContentPane';
+import { StatusBar } from '../components/StatusBar';
 import { useCityEngineStore, useBuildings } from '../utils/cityEngineStore';
 
 // Lazy load 3D components for better performance
@@ -50,6 +53,14 @@ export default function Home() {
   const [showNASALayer, setShowNASALayer] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('2d');
   const [selectedDataPoint, setSelectedDataPoint] = useState<NASADataPoint | null>(null);
+  
+  // ArcGIS Pro-like interface state
+  const [showLayerPanel, setShowLayerPanel] = useState(false);
+  const [showContentPane, setShowContentPane] = useState(true);
+  const [activeContentPane, setActiveContentPane] = useState('contents');
+  const [currentCoordinates, setCurrentCoordinates] = useState({ lat: -11.084, lng: -77.608 });
+  const [mapScale, setMapScale] = useState(10000);
+  
   // City Engine store hooks
   const addBuilding = useCityEngineStore(s => s.addBuilding);
   const addRoad = useCityEngineStore(s => s.addRoad);
@@ -60,15 +71,46 @@ export default function Home() {
   // Helpers para convertir coordenadas
   const centerLat = -11.57;
   const centerLng = -77.27;
-  const to3D = (lat: number, lng: number): [number, number, number] => {
+  
+  const to3D = useCallback((lat: number, lng: number): [number, number, number] => {
     const x = (lng - centerLng) * 111320 * Math.cos(centerLat * Math.PI / 180) / 500;
     const z = (lat - centerLat) * 110540 / 500;
     return [x, 0, z];
-  };
-  const toLL = (x: number, z: number): [number, number] => {
+  }, [centerLat, centerLng]);
+  
+  const toLL = useCallback((x: number, z: number): [number, number] => {
     const lng = x * 500 / (111320 * Math.cos(centerLat * Math.PI / 180)) + centerLng;
     const lat = z * 500 / 110540 + centerLat;
     return [lat, lng];
+  }, [centerLat, centerLng]);
+
+  // Tool selection handler
+  const handleToolSelect = (toolId: string) => {
+    // Handle special tools
+    switch (toolId) {
+      case 'layers':
+        setShowLayerPanel(!showLayerPanel);
+        break;
+      case 'add-building':
+        useCityEngineStore.getState().setSelectedTool('build');
+        break;
+      case 'add-road':
+        useCityEngineStore.getState().setSelectedTool('road');
+        break;
+      case 'select':
+        useCityEngineStore.getState().setSelectedTool('select');
+        break;
+      case 'measure':
+        useCityEngineStore.getState().setSelectedTool('measure');
+        break;
+      case 'add-vegetation':
+        useCityEngineStore.getState().setSelectedTool('vegetation');
+        break;
+      default:
+        // For other tools, use select as default
+        useCityEngineStore.getState().setSelectedTool('select');
+        break;
+    }
   };
 
   // Initialize 2D map only when in 2D mode
@@ -86,6 +128,21 @@ export default function Home() {
       m.addControl(new maplibregl.AttributionControl({
         compact: true
       }), 'bottom-right');
+      
+      // Add coordinate and scale tracking
+      m.on('mousemove', (e) => {
+        setCurrentCoordinates({ 
+          lat: e.lngLat.lat, 
+          lng: e.lngLat.lng 
+        });
+      });
+      
+      m.on('zoom', () => {
+        const zoom = m.getZoom();
+        // Calculate approximate scale based on zoom level
+        const scale = Math.round(591657527.591555 / Math.pow(2, zoom));
+        setMapScale(scale);
+      });
       
       mapRef.current = m;
       m.on('load', () => setReady(true));
@@ -172,7 +229,7 @@ export default function Home() {
     return () => {
       m.off('click', handleClick);
     };
-  }, [selectedTool, addBuilding]);
+  }, [selectedTool, addBuilding, addRoad, roadDraft, to3D]);
 
   // Load puerto layer
   useEffect(() => {
@@ -425,7 +482,7 @@ export default function Home() {
         }
       });
     }
-  }, [ceBuildings, ready, viewMode]);
+  }, [ceBuildings, ready, viewMode, toLL]);
 
   // Dibuja borrador de carretera y carreteras confirmadas
   useEffect(() => {
@@ -504,33 +561,72 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <DashboardHeader />
-
-      {/* View Mode Selector */}
-      <ViewModeSelector 
-        viewMode={viewMode} 
-        onViewModeChange={(mode) => setViewMode(mode as ViewMode)} 
+    <div style={{ height: '100vh', overflow: 'hidden' }}>
+      {/* ArcGIS Pro-like Interface */}
+      <ArcGISProInterface
+        viewMode={viewMode}
+        onViewModeChange={(mode) => setViewMode(mode as ViewMode)}
+        onToolSelect={handleToolSelect}
+        selectedTool={selectedTool}
       />
 
-      {/* Controls Panel */}
-      <DashboardControls
-        data={dashboardData}
-        onDatasetChange={setSelectedDataset}
-        onParameterChange={setSelectedParameter}
-        onNASALayerToggle={setShowNASALayer}
-        showNASALayer={showNASALayer}
-        viewMode={viewMode}
+      {/* Content Pane */}
+      <ContentPane
+        isVisible={showContentPane}
+        onClose={() => setShowContentPane(false)}
+        activePane={activeContentPane}
+        onPaneChange={setActiveContentPane}
+      />
+
+      {/* Content Pane Toggle Button */}
+      {!showContentPane && (
+        <button
+          onClick={() => setShowContentPane(true)}
+          style={{
+            position: 'fixed',
+            top: '230px',
+            left: '16px',
+            padding: '8px 12px',
+            background: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: '500',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            zIndex: 1000
+          }}
+        >
+          📋 Mostrar Panel
+        </button>
+      )}
+
+      {/* Layer Panel */}
+      <LayerPanel
+        isVisible={showLayerPanel}
+        onClose={() => setShowLayerPanel(false)}
       />
 
       {/* Main Content Area */}
-      {renderMainContent()}
+      <div style={{ 
+        marginTop: '218px', 
+        marginBottom: '28px',
+        height: 'calc(100vh - 246px)',
+        position: 'relative'
+      }}>
+        {renderMainContent()}
+      </div>
 
-      {/* Footer */}
-      <DashboardFooter 
-        viewMode={viewMode} 
-        dataCount={nasaData.length} 
+      {/* Status Bar */}
+      <StatusBar
+        coordinates={currentCoordinates}
+        scale={mapScale}
+        projection="WGS84"
+        selectedFeatures={0}
+        totalFeatures={ceBuildings.length}
+        systemStatus="operational"
+        lastUpdate={new Date()}
       />
     </div>
   );

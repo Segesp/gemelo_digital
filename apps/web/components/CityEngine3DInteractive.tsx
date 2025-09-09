@@ -382,7 +382,7 @@ function Professional3DBuilding({
         metalness: 0.1
       })
     };
-  }, [building.color, isSelected, isHovered]);
+  }, [building.color, building.type, isSelected, isHovered]);
 
   const handleClick = useCallback((event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
@@ -1555,7 +1555,7 @@ function InteractiveCityScene() {
       };
       setVegetation(prev => [...prev, newVegetation]);
     }
-  }, [mode, selectedTemplate, roadPoints, measurements]);
+  }, [mode, selectedTemplate, roadPoints]);
 
   const handleBuildingClick = useCallback((building: BuildingData) => {
     if (mode.mode === 'select') {

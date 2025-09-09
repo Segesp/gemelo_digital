@@ -688,12 +688,12 @@ function RoadBuilder({
   const [currentPoints, setCurrentPoints] = useState<[number, number, number][]>([]);
   const [hoverPosition, setHoverPosition] = useState<[number, number, number] | null>(null);
 
-  const roadTypes = {
+  const roadTypes = useMemo(() => ({
     street: { width: 2, color: '#444444', speedLimit: 30, capacity: 100 },
     avenue: { width: 3, color: '#555555', speedLimit: 50, capacity: 200 },
     highway: { width: 4, color: '#666666', speedLimit: 80, capacity: 500 },
     pedestrian: { width: 1.5, color: '#8b7355', speedLimit: 5, capacity: 50 }
-  };
+  }), []);
 
   const handleGroundClick = useCallback((event: any) => {
     if (mode.mode === 'road' && mode.roadType) {
@@ -731,7 +731,7 @@ function RoadBuilder({
         }
       }
     }
-  }, [mode, isBuilding, currentPoints, onAddRoad]);
+  }, [mode, isBuilding, currentPoints, onAddRoad, roadTypes]);
 
   const handleGroundMove = useCallback((event: any) => {
     if (mode.mode === 'road' && mode.roadType) {

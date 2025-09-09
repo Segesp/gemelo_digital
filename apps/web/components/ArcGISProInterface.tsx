@@ -23,6 +23,8 @@ const tools: Tool[] = [
   { id: 'pan', name: 'Desplazar', icon: '✋', category: 'map', tooltip: 'Desplazar vista' },
   { id: 'zoom-in', name: 'Acercar', icon: '🔍', category: 'map', tooltip: 'Acercar zoom' },
   { id: 'zoom-out', name: 'Alejar', icon: '🔎', category: 'map', tooltip: 'Alejar zoom' },
+  { id: 'zoom-extent', name: 'Extensión', icon: '📐', category: 'map', tooltip: 'Zoom a extensión completa' },
+  { id: 'coordinates', name: 'Coordenadas', icon: '🌐', category: 'map', tooltip: 'Sistemas de coordenadas' },
   
   // Edit Tools
   { id: 'select', name: 'Seleccionar', icon: '👆', category: 'edit', tooltip: 'Seleccionar características' },
@@ -30,11 +32,19 @@ const tools: Tool[] = [
   { id: 'create-polygon', name: 'Polígono', icon: '⬟', category: 'edit', tooltip: 'Crear polígono' },
   { id: 'create-line', name: 'Línea', icon: '📏', category: 'edit', tooltip: 'Crear línea' },
   { id: 'create-point', name: 'Punto', icon: '📍', category: 'edit', tooltip: 'Crear punto' },
+  { id: 'delete', name: 'Eliminar', icon: '🗑️', category: 'edit', tooltip: 'Eliminar características' },
+  
+  // Measurement Tools
+  { id: 'measure-distance', name: 'Distancia', icon: '📏', category: 'analysis', tooltip: 'Medir distancias' },
+  { id: 'measure-area', name: 'Área', icon: '📐', category: 'analysis', tooltip: 'Medir áreas' },
+  { id: 'measure-point', name: 'Punto', icon: '📍', category: 'analysis', tooltip: 'Capturar coordenadas' },
   
   // Analysis Tools
-  { id: 'measure', name: 'Medir', icon: '📐', category: 'analysis', tooltip: 'Herramientas de medición' },
   { id: 'buffer', name: 'Buffer', icon: '⭕', category: 'analysis', tooltip: 'Análisis de buffer' },
   { id: 'intersect', name: 'Intersectar', icon: '⚡', category: 'analysis', tooltip: 'Análisis de intersección' },
+  { id: 'union', name: 'Unión', icon: '🔗', category: 'analysis', tooltip: 'Unión de polígonos' },
+  { id: 'spatial-join', name: 'Unión Espacial', icon: '🎯', category: 'analysis', tooltip: 'Unión espacial' },
+  { id: 'clip', name: 'Recortar', icon: '✂️', category: 'analysis', tooltip: 'Recortar características' },
   { id: 'statistics', name: 'Estadísticas', icon: '📊', category: 'analysis', tooltip: 'Estadísticas espaciales' },
   
   // Insert Tools
@@ -42,12 +52,16 @@ const tools: Tool[] = [
   { id: 'add-road', name: 'Carretera', icon: '🛣️', category: 'insert', tooltip: 'Insertar carretera' },
   { id: 'add-vegetation', name: 'Vegetación', icon: '🌳', category: 'insert', tooltip: 'Insertar vegetación' },
   { id: 'add-water', name: 'Agua', icon: '💧', category: 'insert', tooltip: 'Insertar cuerpo de agua' },
+  { id: 'import-data', name: 'Importar', icon: '📥', category: 'insert', tooltip: 'Importar datos' },
+  { id: 'export-data', name: 'Exportar', icon: '📤', category: 'insert', tooltip: 'Exportar datos' },
   
   // View Tools
   { id: 'layers', name: 'Capas', icon: '📋', category: 'view', tooltip: 'Panel de capas' },
   { id: 'symbology', name: 'Simbología', icon: '🎨', category: 'view', tooltip: 'Controles de simbología' },
   { id: 'attributes', name: 'Atributos', icon: '📑', category: 'view', tooltip: 'Tabla de atributos' },
-  { id: 'bookmarks', name: 'Marcadores', icon: '🔖', category: 'view', tooltip: 'Marcadores espaciales' }
+  { id: 'bookmarks', name: 'Marcadores', icon: '🔖', category: 'view', tooltip: 'Marcadores espaciales' },
+  { id: 'legend', name: 'Leyenda', icon: '🏷️', category: 'view', tooltip: 'Leyenda del mapa' },
+  { id: 'overview', name: 'Vista General', icon: '🗺️', category: 'view', tooltip: 'Mapa de vista general' }
 ];
 
 export function ArcGISProInterface({ 

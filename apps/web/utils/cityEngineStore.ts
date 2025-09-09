@@ -24,6 +24,8 @@ export interface BuildingData {
     value: number;
     yearBuilt: number;
     condition: number;
+    lat?: number;
+    lng?: number;
   };
   economics: {
     constructionCost: number;
@@ -111,7 +113,11 @@ export interface CityEngineState {
   vegetation: Map<string, Vegetation>;
   
   // UI state
-  selectedTool: 'select' | 'build' | 'road' | 'terrain' | 'vegetation' | 'measure' | 'zone';
+  selectedTool: 'select' | 'build' | 'road' | 'terrain' | 'vegetation' | 'measure' | 'zone' | 
+               'measure-distance' | 'measure-area' | 'measure-point' |
+               'buffer' | 'intersect' | 'union' | 'spatial-join' | 'clip' |
+               'coordinates' | 'attributes' | 'import-data' | 'export-data' |
+               'create-polygon' | 'create-line' | 'create-point' | 'edit' | 'delete';
   selectedBuilding?: string;
   selectedBuildingTemplate?: string;
   roadConstructionPoints: [number, number, number][];

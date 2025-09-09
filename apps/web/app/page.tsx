@@ -6,6 +6,7 @@ import { ModernToolbar } from '../components/ModernUI';
 import { ArcGISProInterface, LayerPanel } from '../components/ArcGISProInterface';
 import { ContentPane } from '../components/ContentPane';
 import { StatusBar } from '../components/StatusBar';
+import { GISToolsManager } from '../components/gis/GISToolsManager';
 import { useCityEngineStore, useBuildings } from '../utils/cityEngineStore';
 
 // Lazy load 3D components for better performance
@@ -100,11 +101,26 @@ export default function Home() {
       case 'select':
         useCityEngineStore.getState().setSelectedTool('select');
         break;
-      case 'measure':
-        useCityEngineStore.getState().setSelectedTool('measure');
+      case 'measure-distance':
+      case 'measure-area':
+      case 'measure-point':
+        useCityEngineStore.getState().setSelectedTool(toolId);
+        break;
+      case 'buffer':
+      case 'intersect':
+      case 'union':
+      case 'spatial-join':
+      case 'clip':
+        useCityEngineStore.getState().setSelectedTool(toolId);
         break;
       case 'add-vegetation':
         useCityEngineStore.getState().setSelectedTool('vegetation');
+        break;
+      case 'coordinates':
+      case 'attributes':
+      case 'import-data':
+      case 'export-data':
+        useCityEngineStore.getState().setSelectedTool(toolId);
         break;
       default:
         // For other tools, use select as default
@@ -112,6 +128,95 @@ export default function Home() {
         break;
     }
   };
+
+  // Handle GIS tool completion
+  const handleGISToolComplete = (tool: string, result: any) => {
+    console.log('GIS Tool completed:', tool, result);
+    
+    // Handle specific tool results
+    switch (tool) {
+      case 'measurement':
+        // Store measurement result or update UI
+        break;
+      case 'analysis':
+        // Store analysis result or update layers
+        break;
+      case 'feature-update':
+        // Update feature in layers
+        break;
+      case 'feature-delete':
+        // Remove feature from layers
+        break;
+      case 'data-import':
+        // Add imported data as new layer
+        break;
+      case 'export-cancel':
+        // Reset tool state
+        useCityEngineStore.getState().setSelectedTool('select');
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Create layers array for GIS tools
+  const gisLayers = [
+    {
+      id: 'puerto',
+      name: 'Puerto de Chancay',
+      features: {
+        type: 'FeatureCollection' as const,
+        features: [] // Would be populated from actual data
+      },
+      visible: true
+    },
+    {
+      id: 'buildings',
+      name: 'Edificios',
+      features: {
+        type: 'FeatureCollection' as const,
+        features: ceBuildings.map(building => ({
+          type: 'Feature' as const,
+          id: building.id,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: building.properties?.lng && building.properties?.lat 
+              ? [building.properties.lng, building.properties.lat]
+              : toLL(building.position[0], building.position[2]).reverse()
+          },
+          properties: {
+            ...building.properties,
+            height: building.height,
+            type: building.type,
+            id: building.id
+          }
+        }))
+      },
+      visible: true
+    },
+    {
+      id: 'nasa-data',
+      name: 'Datos NASA',
+      features: {
+        type: 'FeatureCollection' as const,
+        features: nasaData.map((point, index) => ({
+          type: 'Feature' as const,
+          id: index,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [point.longitude, point.latitude]
+          },
+          properties: {
+            value: point.value,
+            timestamp: point.timestamp,
+            dataset: selectedDataset,
+            parameter: selectedParameter
+          }
+        }))
+      },
+      visible: showNASALayer
+    }
+  ];
 
   // Initialize 2D map only when in 2D mode
   useEffect(() => {
@@ -616,6 +721,15 @@ export default function Home() {
         position: 'relative'
       }}>
         {renderMainContent()}
+        
+        {/* GIS Tools Manager */}
+        <GISToolsManager
+          map={viewMode === '2d' ? mapRef.current : null}
+          activeTool={selectedTool}
+          onToolComplete={handleGISToolComplete}
+          currentCoordinates={currentCoordinates}
+          layers={gisLayers}
+        />
       </div>
 
       {/* Status Bar */}
